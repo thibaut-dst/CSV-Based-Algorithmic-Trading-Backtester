@@ -1,6 +1,16 @@
 from dataclasses import dataclass
 from datetime import datetime
 from abc import ABC, abstractmethod
+import logging
+
+# Custom exceptions
+class OrderError(Exception):
+    """Raised when an order has invalid parameters"""
+    pass
+
+class ExecutionError(Exception):
+    """Raised when order execution fails"""
+    pass
 
 
 @dataclass(frozen=True)
@@ -12,6 +22,16 @@ class MarketDataPoint:
 
 class Order:
     def __init__(self, symbol: str, quantity: int, price: float, status: str):
+        # Validate order parameters
+        if not symbol or not isinstance(symbol, str):
+            raise OrderError("Symbol must be a non-empty string")
+        if quantity <= 0:
+            raise OrderError(f"Quantity must be positive, got: {quantity}")
+        if price <= 0:
+            raise OrderError(f"Price must be positive, got: {price}")
+        if not status or not isinstance(status, str):
+            raise OrderError("Status must be a non-empty string")
+            
         self._symbol = symbol
         self._quantity = quantity
         self._price = price
@@ -39,3 +59,74 @@ class Strategy(ABC):
     @abstractmethod
     def generate_signals(self, tick: MarketDataPoint) -> list:
         pass
+
+
+class ExecutionEngine:
+    """Handles order execution with simulated failures and error handling"""
+    
+    def __init__(self, failure_rate: float = 0.05):
+        """
+        Initialize execution engine
+        
+        Args:
+            failure_rate: Probability of execution failure (0.0 to 1.0)
+        """
+        self.failure_rate = failure_rate
+        self.logger = logging.getLogger(__name__)
+        
+    def execute_order(self, order: Order) -> bool:
+        """
+        Execute an order with simulated occasional failures
+        
+        Args:
+            order: Order to execute
+            
+        Returns:
+            bool: True if execution successful, False otherwise
+            
+        Raises:
+            ExecutionError: When execution fails
+        """
+        import random
+        
+        # Simulate occasional execution failures
+        if random.random() < self.failure_rate:
+            error_msg = f"Execution failed for order {order.symbol} - {order.quantity} @ {order.price}"
+            self.logger.error(error_msg)
+            raise ExecutionError(error_msg)
+        
+        # Simulate successful execution
+        self.logger.info(f"Successfully executed order: {order.symbol} - {order.quantity} @ {order.price}")
+        return True
+    
+    def process_orders(self, orders: list) -> dict:
+        """
+        Process a list of orders with error handling
+        
+        Args:
+            orders: List of Order objects to process
+            
+        Returns:
+            dict: Results summary with success/failure counts
+        """
+        results = {
+            'total_orders': len(orders),
+            'successful': 0,
+            'failed': 0,
+            'errors': []
+        }
+        
+        for order in orders:
+            try:
+                self.execute_order(order)
+                results['successful'] += 1
+            except ExecutionError as e:
+                results['failed'] += 1
+                results['errors'].append(str(e))
+                self.logger.error(f"Order execution failed: {e}")
+            except Exception as e:
+                results['failed'] += 1
+                results['errors'].append(f"Unexpected error: {e}")
+                self.logger.error(f"Unexpected error during order execution: {e}")
+        
+        return results
