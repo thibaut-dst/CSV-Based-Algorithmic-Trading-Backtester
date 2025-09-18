@@ -1,0 +1,140 @@
+from abc import ABC, abstractmethod
+from typing import List, Optional
+from collections import deque
+from models import MarketDataPoint, Signal
+
+class Strategy(ABC):
+    @abstractmethod
+    def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
+        """
+        Given a new MarketDataPoint, decide whether to emit trading signals.
+        Returns a list (could be empty, or contain 1+ Signal objects).
+        """
+        pass
+
+
+# --------------------------
+# Strategy 1: SMA Crossover
+# --------------------------
+class SMACrossoverStrategy(Strategy):
+    """
+    Short SMA vs Long SMA crossover.
+    BUY when short SMA crosses above long SMA.
+    SELL when short SMA crosses below long SMA.
+    """
+
+    def __init__(self, symbol: str, short_window: int = 5, long_window: int = 20, qty: int = 1):
+        # Check that parameters make sense
+        if short_window <= 0 or long_window <= 0:
+            raise ValueError("Windows must be positive")
+        if short_window >= long_window:
+            raise ValueError("short_window must be smaller than long_window")
+
+        self._symbol = symbol
+        self._short_w = short_window
+        self._long_w = long_window
+        self._qty = qty
+
+        # Private buffers to store most recent prices
+        self._short_buf: deque[float] = deque(maxlen=short_window)
+        self._long_buf: deque[float] = deque(maxlen=long_window)
+
+        # State variables: remember last relationship and whether we're in a position
+        self._last_short_above_long: Optional[bool] = None
+        self._in_position: bool = False
+
+    def _sma(self, buf: deque[float]) -> Optional[float]:
+        """Helper: compute SMA only if buffer is full."""
+        return sum(buf) / len(buf) if len(buf) == buf.maxlen else None
+
+    def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
+        # Ignore if the tick is for a different symbol
+        if tick.symbol != self._symbol:
+            return []
+
+        # Add the latest price to both buffers
+        self._short_buf.append(tick.price)
+        self._long_buf.append(tick.price)
+
+        # Compute short and long SMAs
+        s_sma = self._sma(self._short_buf)
+        l_sma = self._sma(self._long_buf)
+
+        # If buffers are not full yet, do nothing
+        if s_sma is None or l_sma is None:
+            return []
+
+        short_above = s_sma > l_sma
+        out: List[Signal] = []
+
+        # Only act if we have a previous state to compare with
+        if self._last_short_above_long is not None:
+            crossed_up = (not self._last_short_above_long) and short_above
+            crossed_down = self._last_short_above_long and (not short_above)
+
+            # If short SMA crossed above long SMA → BUY
+            if crossed_up and not self._in_position:
+                out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, reason="SMA cross up"))
+                self._in_position = True
+
+            # If short SMA crossed below long SMA → SELL
+            elif crossed_down and self._in_position:
+                out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, reason="SMA cross down"))
+                self._in_position = False
+
+        # Remember current relationship for the next tick
+        self._last_short_above_long = short_above
+        return out
+
+
+# --------------------------
+# Strategy 2: Price Change Momentum
+# --------------------------
+class PriceChangeMomentumStrategy(Strategy):
+    """
+    Momentum strategy based on absolute price change.
+    BUY when current price is at least `threshold` above the last price.
+    SELL when current price is at least `threshold` below the last price.
+    """
+
+    def __init__(self, symbol: str, threshold: float = 1.0, qty: int = 1):
+        if threshold <= 0:
+            raise ValueError("threshold must be positive")
+
+        self._symbol = symbol
+        self._threshold = threshold  # how big a change triggers a trade
+        self._qty = qty
+
+        # Remember the last price we saw
+        self._last_price: Optional[float] = None
+        # Track whether we're currently holding a position
+        self._in_position: bool = False
+
+    def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
+        # Ignore other symbols
+        if tick.symbol != self._symbol:
+            return []
+
+        out: List[Signal] = []
+
+        # First tick: just record the price, no signal yet
+        if self._last_price is None:
+            self._last_price = tick.price
+            return out
+
+        # Difference between current and last price
+        delta = tick.price - self._last_price
+
+        # If price jumped up enough → BUY
+        if (not self._in_position) and (delta >= self._threshold):
+            out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, reason="Momentum up"))
+            self._in_position = True
+
+        # If price dropped down enough → SELL
+        elif self._in_position and (delta <= -self._threshold):
+            out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, reason="Momentum down"))
+            self._in_position = False
+
+        # Update last seen price for next tick
+        self._last_price = tick.price
+        return out

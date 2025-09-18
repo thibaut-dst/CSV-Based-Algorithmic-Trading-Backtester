@@ -1,23 +1,18 @@
-import unittest
-import dataclasses
-from dataclasses import dataclass, FrozenInstanceError
+import pytest
+from datetime import datetime
+from models import MarketDataPoint, Order
 
-class TestMutability(unittest.TestCase):
-    """Test cases for demonstrating mutability differences between Order and MarketDataPoint"""
-    
-    def test_order_mutability(self):
-        """Test that Order attributes can be modified after creation"""
-        order = Order("AAPL", 100, 150.0, "PENDING")
-        order.status = "FILLED"
-        self.assertEqual(order.status, "FILLED")
-    
-    def test_market_data_immutability(self):
-        """Test that MarketDataPoint is immutable"""
-        data_point = MarketDataPoint(
-            timestamp=datetime(2025, 9, 15, 16, 0, 0),
-            symbol="AAPL",
-            price=150.0
-        )
-        
-        with self.assertRaises(dataclasses.FrozenInstanceError):
-            data_point.price = 160.0
+def test_order_status_update():
+    order = Order(symbol="AAPL", quantity=10, price=150, status="pending")
+    print(f"Before update: status={order.status}")
+    order.status = "completed"
+    print(f"After update: status={order.status}")
+    assert order.status == "completed"
+
+def test_market_data_point_immutable():
+    mdp = MarketDataPoint(timestamp=datetime.now(), symbol="AAPL", price=150.0)
+    print(f"Original price={mdp.price}")
+    from dataclasses import FrozenInstanceError
+    with pytest.raises(FrozenInstanceError):
+        mdp.price = 155.0
+    print("Attempting to update price raised FrozenInstanceError as expected")
