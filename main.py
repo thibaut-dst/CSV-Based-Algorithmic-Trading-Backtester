@@ -1,13 +1,9 @@
 import csv
-from dataclasses import dataclass
+import dataclasses
+from dataclasses import dataclass, FrozenInstanceError
 from datetime import datetime
+from models import MarketDataPoint, Order
 
-@dataclass(frozen=True)
-class MarketDataPoint:
-    """Class for keeping track of an item in inventory."""
-    timestamp: datetime
-    symbol: str
-    price: float
 
 
 
@@ -24,4 +20,4 @@ with open('market_data.csv', 'r', newline='') as file:
         )
         market_data_points.append(point)
 
-print(market_data_points)
+#print(market_data_points)
