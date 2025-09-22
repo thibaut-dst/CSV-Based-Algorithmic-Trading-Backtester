@@ -22,126 +22,74 @@ class SMACrossoverStrategy(Strategy):
     BUY when short SMA crosses above long SMA.
     SELL when short SMA crosses below long SMA.
     """
-
-    def __init__(self, symbol: str, short_window: int = 5, long_window: int = 20, qty: int = 1):
-        # Check that parameters make sense
-        if short_window <= 0 or long_window <= 0:
-            raise ValueError("Windows must be positive")
-        if short_window >= long_window:
-            raise ValueError("short_window must be smaller than long_window")
-
+    
+    def __init__(self, symbol: str, short_window: int = 10, long_window: int = 30):
         self._symbol = symbol
-        self._short_w = short_window
-        self._long_w = long_window
-        self._qty = qty
+        self._short_window = short_window
+        self._long_window = long_window
+        self._price_history = deque(maxlen=long_window)
+        self._previous_short_sma = None
+        self._previous_long_sma = None
 
-        # Private buffers to store most recent prices
-        self._short_buf: deque[float] = deque(maxlen=short_window)
-        self._long_buf: deque[float] = deque(maxlen=long_window)
-
-        # State variables: remember last relationship and whether we're in a position
-        self._last_short_above_long: Optional[bool] = None
-        self._in_position: bool = False
-
-    def _sma(self, buf: deque[float]) -> Optional[float]:
-        """Helper: compute SMA only if buffer is full."""
-        return sum(buf) / len(buf) if len(buf) == buf.maxlen else None
+    def _calculate_sma(self, window: int) -> Optional[float]:
+        """Calculate Simple Moving Average for the given window."""
+        if len(self._price_history) < window:
+            return None
+        return sum(list(self._price_history)[-window:]) / window
 
     def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
-        # Ignore if the tick is for a different symbol
-        if tick.symbol != self._symbol:
-            return []
-
-        # Add the latest price to both buffers
-        self._short_buf.append(tick.price)
-        self._long_buf.append(tick.price)
-
-        # Compute short and long SMAs
-        s_sma = self._sma(self._short_buf)
-        l_sma = self._sma(self._long_buf)
-
-        # If buffers are not full yet, do nothing
-        if s_sma is None or l_sma is None:
-            return []
-
-        short_above = s_sma > l_sma
-        out: List[Signal] = []
-
-        # Only act if we have a previous state to compare with
-        if self._last_short_above_long is not None:
-            crossed_up = (not self._last_short_above_long) and short_above
-            crossed_down = self._last_short_above_long and (not short_above)
-
-            # If short SMA crossed above long SMA → BUY
-            if crossed_up and not self._in_position:
-                out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, 
-                                 reason="SMA cross up", strategy="SMA_CROSSOVER"))
-                self._in_position = True
-
-            # If short SMA crossed below long SMA → SELL
-            elif crossed_down and self._in_position:
-                out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, 
-                                 reason="SMA cross down", strategy="SMA_CROSSOVER"))
-                self._in_position = False
-
-        # Remember current relationship for the next tick
-        self._last_short_above_long = short_above
-        return out
-
-
-# --------------------------
-# Strategy 2: Price Change Momentum
-# --------------------------
-class PriceChangeMomentumStrategy(Strategy):
-    """
-    Momentum strategy based on absolute price change.
-    BUY when current price is at least `threshold` above the last price.
-    SELL when current price is at least `threshold` below the last price.
-    """
-
-    def __init__(self, symbol: str, threshold: float = 1.0, qty: int = 1):
-        if threshold <= 0:
-            raise ValueError("threshold must be positive")
-
-        self._symbol = symbol
-        self._threshold = threshold  # how big a change triggers a trade
-        self._qty = qty
-
-        # Remember the last price we saw
-        self._last_price: Optional[float] = None
-        # Track whether we're currently holding a position
-        self._in_position: bool = False
-
-    def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
-        # Ignore other symbols
         if tick.symbol != self._symbol:
             return []
 
         out: List[Signal] = []
-
-        # First tick: just record the price, no signal yet
-        if self._last_price is None:
-            self._last_price = tick.price
+        
+        # Add current price to history
+        self._price_history.append(tick.price)
+        
+        # Calculate current SMAs
+        current_short_sma = self._calculate_sma(self._short_window)
+        current_long_sma = self._calculate_sma(self._long_window)
+        
+        # Need both SMAs to be available and previous values for crossover detection
+        if (current_short_sma is None or current_long_sma is None or 
+            self._previous_short_sma is None or self._previous_long_sma is None):
+            # Store current values for next iteration
+            self._previous_short_sma = current_short_sma
+            self._previous_long_sma = current_long_sma
             return out
-
-        # Difference between current and last price
-        delta = tick.price - self._last_price
-
-        # If price jumped up enough → BUY
-        if (not self._in_position) and (delta >= self._threshold):
-            out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, 
-                             reason="Momentum up", strategy="MOMENTUM"))
-            self._in_position = True
-
-        # If price dropped down enough → SELL
-        elif self._in_position and (delta <= -self._threshold):
-            out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, 
-                             reason="Momentum down", strategy="MOMENTUM"))
-            self._in_position = False
-
-        # Update last seen price for next tick
-        self._last_price = tick.price
+        
+        # Check for crossover signals
+        # BUY: short SMA crosses above long SMA
+        if (self._previous_short_sma <= self._previous_long_sma and 
+            current_short_sma > current_long_sma):
+            out.append(Signal(
+                tick.timestamp, 
+                tick.symbol, 
+                "BUY", 
+                1, 
+                reason=f"SMA crossover: {current_short_sma:.2f} > {current_long_sma:.2f}", 
+                strategy="SMA_CROSSOVER"
+            ))
+        
+        # SELL: short SMA crosses below long SMA
+        elif (self._previous_short_sma >= self._previous_long_sma and 
+              current_short_sma < current_long_sma):
+            out.append(Signal(
+                tick.timestamp, 
+                tick.symbol, 
+                "SELL", 
+                1, 
+                reason=f"SMA crossover: {current_short_sma:.2f} < {current_long_sma:.2f}", 
+                strategy="SMA_CROSSOVER"
+            ))
+        
+        # Store current values for next iteration
+        self._previous_short_sma = current_short_sma
+        self._previous_long_sma = current_long_sma
+        
         return out
+
+
 
 # --------------------------
 # Strategy 3: Random buy and sell
