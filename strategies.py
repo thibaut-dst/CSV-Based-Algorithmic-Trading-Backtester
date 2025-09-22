@@ -121,14 +121,14 @@ class RandomBuyAndSellStrategy(Strategy):
         if self._position == 0:
             # No position, consider buying
             if random.random() < 0.7:  # 70% chance to buy when no position
-                out.append(Signal(tick.timestamp, tick.symbol, "BUY", 1, 
+                out.append(Signal(tick.timestamp, tick.symbol, "BUY", 100, 
                                 reason="Random buy", strategy="RANDOM_BUY_AND_SELL"))
                 self._position += 1
         else:
             # Have position, randomly decide to buy more or sell
             action = random.random()
             if action < 0.3:  # 30% chance to buy more
-                out.append(Signal(tick.timestamp, tick.symbol, "BUY", 1, 
+                out.append(Signal(tick.timestamp, tick.symbol, "BUY", 100, 
                                 reason="Random buy more", strategy="RANDOM_BUY_AND_SELL"))
                 self._position += 1
             elif action < 0.8:  # 50% chance to sell (0.3 to 0.8)

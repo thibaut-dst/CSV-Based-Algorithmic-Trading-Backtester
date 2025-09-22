@@ -1,6 +1,6 @@
 # Trading Strategy Performance Report
 
-**Generated:** 2025-09-22 02:08:03  
+**Generated:** 2025-09-22 02:15:59  
 **Backtest Period:** 2025-09-15T16:00:55.757130 to 2025-09-21T23:53:16.260874  
 **Total Market Ticks:** 1,500
 
@@ -11,10 +11,10 @@
 This report analyzes the performance of 1 algorithmic trading strategies over the backtest period.
 
 **Key Performance Highlights:**
-- **Total Portfolio Return:** -0.99%
-- **Absolute Profit/Loss:** $-990.91
-- **Risk-Adjusted Return (Sharpe):** -2.677
-- **Maximum Drawdown:** 3.28%
+- **Total Portfolio Return:** -28.18%
+- **Absolute Profit/Loss:** $-28,184.94
+- **Risk-Adjusted Return (Sharpe):** -0.405
+- **Maximum Drawdown:** 51.57%
 - **Win Rate:** 48.1%
 
 ---
@@ -24,10 +24,10 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 | Metric | Value |
 |--------|--------|
 | **Initial Capital** | $100,000.00 |
-| **Final Portfolio Value** | $99,009.09 |
-| **Total Return** | -0.99% |
-| **Absolute P&L** | $-990.91 |
-| **Average Daily Return** | -0.001% |
+| **Final Portfolio Value** | $71,815.06 |
+| **Total Return** | -28.18% |
+| **Absolute P&L** | $-28,184.94 |
+| **Average Daily Return** | -0.021% |
 
 ---
 
@@ -35,11 +35,11 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 
 | Metric | Value | Interpretation |
 |--------|--------|----------------|
-| **Sharpe Ratio** | -2.677 | Poor risk-adjusted performance |
-| **Maximum Drawdown** | 3.28% | Low maximum loss from peak |
-| **Volatility (Daily)** | 0.06% | Daily portfolio volatility |
-| **Best Period Return** | +0.32% | Single best trading period |
-| **Worst Period Return** | -0.31% | Single worst trading period |
+| **Sharpe Ratio** | -0.405 | Poor risk-adjusted performance |
+| **Maximum Drawdown** | 51.57% | High maximum loss from peak |
+| **Volatility (Daily)** | 1.15% | Daily portfolio volatility |
+| **Best Period Return** | +6.77% | Single best trading period |
+| **Worst Period Return** | -6.24% | Single worst trading period |
 
 ---
 
@@ -47,7 +47,7 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 
 | Strategy | Initial Capital | Final Value | Return | P&L |
 |----------|----------------|-------------|--------|-----|
-| **RandomBuyAndSellStrategy_AAPL** | $100,000.00 | $99,814.28 | -0.19% | $-185.72 |
+| **RandomBuyAndSellStrategy_AAPL** | $100,000.00 | $69,031.62 | -30.97% | $-30,968.38 |
 
 ---
 
@@ -55,11 +55,11 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 
 | Metric | Value |
 |--------|--------|
-| **Total Signals Generated** | 39 |
-| **Total Orders Placed** | 39 |
-| **Successful Orders** | 39 |
-| **Failed Orders** | 0 |
-| **Order Success Rate** | 100.0% |
+| **Total Signals Generated** | 23 |
+| **Total Orders Placed** | 33 |
+| **Successful Orders** | 23 |
+| **Failed Orders** | 10 |
+| **Order Success Rate** | 69.7% |
 | **Total Trading Periods** | 1499 |
 | **Winning Periods** | 239 |
 | **Losing Periods** | 258 |
@@ -85,7 +85,7 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 | Period 1499 | +0.000% |
 
 **Returns Summary:**
-- Average Period Return: -0.001%
+- Average Period Return: -0.021%
 - Positive Periods: 239/1499 (15.9%)
 - Total Periods Analyzed: 1499
 
@@ -103,19 +103,19 @@ This report analyzes the performance of 1 algorithmic trading strategies over th
 ## Performance Interpretation
 
 ### Overall Assessment
-The portfolio experienced a **negative return of -0.99%**, indicating losses during the backtest period. The Sharpe ratio of -2.677 suggests **poor risk-adjusted performance**. 
+The portfolio experienced a **negative return of -28.18%**, indicating losses during the backtest period. The Sharpe ratio of -0.405 suggests **poor risk-adjusted performance**. 
 
 ### Risk Profile
-The strategy experienced a maximum drawdown of **3.28%**, representing the largest peak-to-trough decline. This is considered a **low-risk** drawdown level.
+The strategy experienced a maximum drawdown of **51.57%**, representing the largest peak-to-trough decline. This is a **high-risk** drawdown that may require strategy refinement.
 
 ### Trading Effectiveness
 - **Win Rate:** 48.1% of trading periods were profitable
-- **Execution Quality:** 100.0% order success rate
+- **Execution Quality:** 69.7% order success rate
 - **Strategy Diversity:** 1 different strategies deployed
 
 ### Strategy Analysis
-- **Top Performer:** RandomBuyAndSellStrategy_AAPL with -0.19% return
-- **Underperformer:** RandomBuyAndSellStrategy_AAPL with -0.19% return
+- **Top Performer:** RandomBuyAndSellStrategy_AAPL with -30.97% return
+- **Underperformer:** RandomBuyAndSellStrategy_AAPL with -30.97% return
 - **Portfolio Effect:** Diversification across strategies did not prevent overall losses
 
 ---
@@ -126,7 +126,7 @@ The strategy experienced a maximum drawdown of **3.28%**, representing the large
 - **Improve Win Rate:** Current win rate is below 50%. Consider refining entry/exit criteria.
 
 ### 2. Risk Management
-- **Risk Control:** Current drawdown levels are acceptable. Maintain existing risk controls.
+- **Reduce Drawdown:** Implement tighter stop-losses or position sizing to limit maximum drawdown.
 
 ### 3. Performance Enhancement
 - **Strategy Review:** Re-evaluate strategy parameters, market conditions, and implementation before live deployment.
@@ -137,7 +137,7 @@ The strategy experienced a maximum drawdown of **3.28%**, representing the large
 
 | Symbol | Quantity | Avg Price | Current Value |
 |--------|----------|-----------|---------------|
-| AAPL | 1 | $99.27 | $99.27 |
+| AAPL | 684 | $140.14 | $95,854.34 |
 
 
 ---
@@ -156,4 +156,4 @@ The strategy experienced a maximum drawdown of **3.28%**, representing the large
 ---
 
 *Report generated by CSV-Based Algorithmic Trading Backtester*  
-*Generation Time: 2025-09-22 02:08:03*
+*Generation Time: 2025-09-22 02:15:59*

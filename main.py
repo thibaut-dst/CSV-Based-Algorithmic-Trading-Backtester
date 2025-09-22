@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-Main orchestration script for the CSV-Based Algorithmic Trading Backtester.
-This script demonstrates the complete workflow:
-1. Data loading from CSV files
-2. Strategy configuration and execution
-3. Order processing and portfolio management
-4. Results analysis and reporting
-"""
-
 import logging
 from typing import List, Dict, Any
 import random
@@ -45,17 +35,6 @@ def run_strategy_list():
     generate_strategy_performance_plots(engine, strat_list)
 
 
-
-
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == "--error-demo":
-        # Run just the error handling demo
-        print("Error demo not implemented")
-    else:
-        # Run the complete trading system demonstration
-        run_strategy_list()
         
 def run_error_demo():
     """Demonstrate error handling and failure simulation with 20% failure rate."""
