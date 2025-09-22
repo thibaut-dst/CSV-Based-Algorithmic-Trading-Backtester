@@ -19,6 +19,7 @@ class Signal:
     side: str             # "BUY" or "SELL"
     qty: int              # how many shares to trade
     reason: str = ""      # optional text explaining why the signal was created
+    strategy: str = "Unknown"  # strategy that generated this signal
 
 
 class Order:

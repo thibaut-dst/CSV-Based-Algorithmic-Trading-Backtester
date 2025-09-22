@@ -8,7 +8,7 @@ This module provides comprehensive performance analysis including:
 - Sharpe ratio computation
 - Maximum drawdown analysis
 - Professional reporting in Markdown format
-- ASCII equity curve visualization
+- Professional equity curve visualization with matplotlib
 """
 
 import math
@@ -16,6 +16,10 @@ import statistics
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Any
 import logging
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.figure import Figure
+import os
 
 from models import MarketDataPoint, Order, Signal
 from engine import ExecutionEngine
@@ -275,6 +279,9 @@ class PerformanceAnalyzer:
         successful_orders = sum(1 for order in self.engine.orders if order.status == "FILLED")
         failed_orders = total_orders - successful_orders
         
+        # Strategy-specific analysis
+        strategy_stats = self._analyze_strategy_performance()
+        
         # Performance metrics
         total_return = self.calculate_total_return()
         sharpe_ratio = self.calculate_sharpe_ratio()
@@ -334,6 +341,7 @@ class PerformanceAnalyzer:
                 'average_return': avg_return,
                 'average_return_pct': avg_return * 100
             },
+            'strategy_analysis': strategy_stats,
             'drawdown_analysis': drawdown_info,
             'positions': self.engine.positions,
             'time_period': {
@@ -346,76 +354,121 @@ class PerformanceAnalyzer:
         logger.info("Performance metrics calculation completed")
         return self.metrics
     
-    def generate_ascii_equity_curve(self, width: int = 80, height: int = 20) -> str:
+    def _analyze_strategy_performance(self) -> Dict[str, Any]:
+        """Analyze performance by strategy type."""
+        strategy_stats = {}
+        
+        # Group signals and orders by strategy
+        signals_by_strategy = {}
+        orders_by_strategy = {}
+        
+        for signal in self.engine.signals:
+            strategy_name = getattr(signal, 'strategy', 'Unknown')
+            if strategy_name not in signals_by_strategy:
+                signals_by_strategy[strategy_name] = []
+            signals_by_strategy[strategy_name].append(signal)
+        
+        for order in self.engine.orders:
+            # Try to infer strategy from order characteristics or add strategy tracking
+            strategy_name = getattr(order, 'strategy', 'Unknown')
+            if strategy_name not in orders_by_strategy:
+                orders_by_strategy[strategy_name] = []
+            orders_by_strategy[strategy_name].append(order)
+        
+        # Calculate stats for each strategy
+        for strategy_name in signals_by_strategy.keys():
+            signals = signals_by_strategy.get(strategy_name, [])
+            orders = orders_by_strategy.get(strategy_name, [])
+            
+            successful_orders = sum(1 for order in orders if order.status == "FILLED")
+            failed_orders = len(orders) - successful_orders
+            
+            strategy_stats[strategy_name] = {
+                'signals_generated': len(signals),
+                'orders_placed': len(orders),
+                'successful_orders': successful_orders,
+                'failed_orders': failed_orders,
+                'success_rate': (successful_orders / len(orders) * 100) if orders else 0
+            }
+        
+        return strategy_stats
+    
+    def generate_equity_curve_chart(self, filename: str = "equity_curve.png") -> str:
         """
-        Generate ASCII art equity curve.
+        Generate professional equity curve chart using matplotlib.
         
         Args:
-            width: Chart width in characters
-            height: Chart height in characters
+            filename: Output filename for the chart
             
         Returns:
-            ASCII art string representing the equity curve
+            Path to generated chart file
         """
         if not self.portfolio_history:
-            return "No portfolio data available for equity curve"
+            logger.warning("No portfolio data available for equity curve chart")
+            return ""
         
+        if len(self.portfolio_history) < 2:
+            logger.warning("Insufficient data for equity curve chart")
+            return ""
+        
+        # Extract data
+        timestamps = [snapshot['timestamp'] for snapshot in self.portfolio_history]
         values = [snapshot['total_value'] for snapshot in self.portfolio_history]
         
-        if len(values) < 2:
-            return "Insufficient data for equity curve"
-        
-        # Normalize values to fit chart dimensions
-        min_val = min(values)
-        max_val = max(values)
-        
-        if max_val == min_val:
-            return "No variation in portfolio value"
-        
         # Create the chart
-        chart_lines = []
+        plt.style.use('default')
+        fig, ax = plt.subplots(figsize=(12, 8))
         
-        # Header
-        chart_lines.append("Portfolio Equity Curve")
-        chart_lines.append("=" * width)
-        chart_lines.append(f"Initial: ${self.initial_capital:,.0f} | Final: ${values[-1]:,.0f} | Return: {((values[-1]/self.initial_capital-1)*100):+.1f}%")
-        chart_lines.append("")
+        # Plot equity curve
+        ax.plot(timestamps, values, linewidth=2, color='#2E86AB', alpha=0.8)
+        ax.fill_between(timestamps, values, alpha=0.3, color='#2E86AB')
         
-        # Y-axis labels and chart body
-        for row in range(height):
-            y_pos = height - 1 - row
-            y_value = min_val + (max_val - min_val) * (y_pos / (height - 1))
-            
-            line = f"{y_value:8.0f} │"
-            
-            for col in range(width - 10):
-                data_index = int((col / (width - 10)) * (len(values) - 1))
-                data_value = values[data_index]
-                
-                # Determine if this position should have a point
-                normalized_value = (data_value - min_val) / (max_val - min_val)
-                chart_y = normalized_value * (height - 1)
-                
-                if abs(chart_y - y_pos) < 0.5:
-                    line += "●"
-                elif row == height - 1:  # Bottom line
-                    line += "─"
-                else:
-                    line += " "
-            
-            chart_lines.append(line)
+        # Formatting
+        ax.set_title('Portfolio Equity Curve', fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('Time', fontsize=12)
+        ax.set_ylabel('Portfolio Value ($)', fontsize=12)
         
-        # X-axis
-        x_axis = "         └" + "─" * (width - 10)
-        chart_lines.append(x_axis)
+        # Format y-axis as currency
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
         
-        # Time labels
-        start_time = self.portfolio_history[0]['timestamp'].strftime("%H:%M:%S")
-        end_time = self.portfolio_history[-1]['timestamp'].strftime("%H:%M:%S")
-        time_label = f"         {start_time}" + " " * (width - 20 - len(start_time) - len(end_time)) + end_time
-        chart_lines.append(time_label)
+        # Format x-axis dates
+        if len(timestamps) > 1:
+            time_span = timestamps[-1] - timestamps[0]
+            if time_span.total_seconds() < 3600:  # Less than 1 hour
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+            elif time_span.days < 1:  # Less than 1 day
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+            else:
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         
-        return "\\n".join(chart_lines)
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45)
+        
+        # Add grid
+        ax.grid(True, alpha=0.3)
+        
+        # Add performance metrics as text
+        initial_value = values[0]
+        final_value = values[-1]
+        total_return = ((final_value - initial_value) / initial_value) * 100
+        
+        # Add text box with key metrics
+        textstr = f'Initial: ${initial_value:,.0f}\nFinal: ${final_value:,.0f}\nReturn: {total_return:+.1f}%'
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', bbox=props)
+        
+        # Tight layout to prevent label cutoff
+        plt.tight_layout()
+        
+        # Save the chart
+        chart_path = os.path.join(os.getcwd(), filename)
+        plt.savefig(chart_path, dpi=300, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none')
+        plt.close()  # Close to free memory
+        
+        logger.info(f"Equity curve chart generated: {filename}")
+        return filename
     
     def generate_markdown_report(self, filename: str = "performance.md") -> str:
         """
@@ -432,8 +485,12 @@ class PerformanceAnalyzer:
         
         logger.info(f"Generating performance report: {filename}")
         
+        # Generate equity curve chart
+        chart_filename = "equity_curve.png"
+        self.generate_equity_curve_chart(chart_filename)
+        
         # Generate report content
-        report_content = self._create_markdown_content()
+        report_content = self._create_markdown_content(chart_filename)
         
         # Write to file
         with open(filename, 'w', encoding='utf-8') as f:
@@ -442,12 +499,13 @@ class PerformanceAnalyzer:
         logger.info(f"Performance report generated: {filename}")
         return filename
     
-    def _create_markdown_content(self) -> str:
+    def _create_markdown_content(self, chart_filename: str = "") -> str:
         """Create the markdown content for the performance report."""
         execution = self.metrics['execution_summary']
         portfolio = self.metrics['portfolio_performance']
         risk = self.metrics['risk_metrics']
         trading = self.metrics['trading_statistics']
+        strategy_analysis = self.metrics['strategy_analysis']
         drawdown = self.metrics['drawdown_analysis']
         time_info = self.metrics['time_period']
         
@@ -499,6 +557,21 @@ This report analyzes the performance of the algorithmic trading strategy over th
 | Win Rate | {trading['win_rate']:.1f}% |
 | Average Period Return | {trading['average_return_pct']:+.3f}% |
 
+## Strategy Analysis
+
+"""
+
+        # Add strategy-specific analysis
+        if strategy_analysis:
+            content += "| Strategy | Signals | Orders | Success Rate | Failed Orders |\n"
+            content += "|----------|---------|--------|--------------|---------------|\n"
+            for strategy_name, stats in strategy_analysis.items():
+                content += f"| {strategy_name} | {stats['signals_generated']} | {stats['orders_placed']} | {stats['success_rate']:.1f}% | {stats['failed_orders']} |\n"
+        else:
+            content += "*Note: Strategy-specific analysis requires enhanced signal tracking.*\n"
+
+        content += f"""
+
 ## Drawdown Analysis
 
 | Metric | Value |
@@ -530,9 +603,9 @@ This report analyzes the performance of the algorithmic trading strategy over th
 
 ## Equity Curve
 
-```
-{self.generate_ascii_equity_curve()}
-```
+![Portfolio Equity Curve]({chart_filename})
+
+*Figure: Portfolio value evolution over time showing the cumulative performance of the trading strategy.*
 
 ## Performance Interpretation
 

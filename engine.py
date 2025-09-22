@@ -98,8 +98,9 @@ class ExecutionEngine:
             # Create order with validation (Order.__init__ will validate parameters)
             order = Order(signal.symbol, qty, price, status="PENDING")
             
-            # Store the original signal side for proper execution
+            # Store the original signal side and strategy for proper execution
             order._signal_side = signal.side  # Store side for execution logic
+            order.strategy = signal.strategy  # Store strategy information
             
             logger.info(f"Created {signal.side} order: {order.symbol} {order.quantity}@{order.price} [{order.status}]")
             return order

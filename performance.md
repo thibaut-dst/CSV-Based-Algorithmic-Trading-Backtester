@@ -1,15 +1,15 @@
 # Trading Strategy Performance Report
 
-Generated on: 2025-09-21 22:57:25
+Generated on: 2025-09-21 23:15:17
 
 ## Executive Summary
 
 This report analyzes the performance of the algorithmic trading strategy over the period from 2025-09-15T16:00:55.757130 to 2025-09-15T16:01:01.840650.
 
 **Key Highlights:**
-- **Total Return**: +1.78%
-- **Sharpe Ratio**: -11.256
-- **Maximum Drawdown**: 0.42%
+- **Total Return**: -1.75%
+- **Sharpe Ratio**: -1.588
+- **Maximum Drawdown**: 5.00%
 - **Win Rate**: 48.0%
 
 ## Portfolio Performance
@@ -17,19 +17,19 @@ This report analyzes the performance of the algorithmic trading strategy over th
 | Metric | Value |
 |--------|-------|
 | Initial Capital | $100,000.00 |
-| Final Portfolio Value | $101,780.15 |
-| Total Return | +1.78% |
-| Absolute Profit/Loss | $+1,780.15 |
+| Final Portfolio Value | $98,250.80 |
+| Total Return | -1.75% |
+| Absolute Profit/Loss | $-1,749.20 |
 
 ## Risk Metrics
 
 | Metric | Value |
 |--------|-------|
-| Sharpe Ratio | -11.256 |
-| Maximum Drawdown | 0.42% |
-| Volatility (Daily) | 0.01% |
-| Best Period Return | +0.04% |
-| Worst Period Return | -0.04% |
+| Sharpe Ratio | -1.588 |
+| Maximum Drawdown | 5.00% |
+| Volatility (Daily) | 0.15% |
+| Best Period Return | +0.49% |
+| Worst Period Return | -0.47% |
 
 ## Trading Statistics
 
@@ -37,22 +37,30 @@ This report analyzes the performance of the algorithmic trading strategy over th
 |--------|-------|
 | Total Signals Generated | 169 |
 | Total Orders Placed | 169 |
-| Successful Orders | 152 |
-| Failed Orders | 17 |
-| Order Success Rate | 89.9% |
+| Successful Orders | 146 |
+| Failed Orders | 23 |
+| Order Success Rate | 86.4% |
 | Total Trading Periods | 499 |
 | Winning Periods | 238 |
 | Losing Periods | 258 |
 | Win Rate | 48.0% |
-| Average Period Return | -0.001% |
+| Average Period Return | -0.007% |
+
+## Strategy Analysis
+
+| Strategy | Signals | Orders | Success Rate | Failed Orders |
+|----------|---------|--------|--------------|---------------|
+| MOMENTUM | 129 | 129 | 88.4% | 15 |
+| SMA_CROSSOVER | 40 | 40 | 80.0% | 8 |
+
 
 ## Drawdown Analysis
 
 | Metric | Value |
 |--------|-------|
-| Maximum Drawdown | 0.42% |
-| Peak Portfolio Value | $102,127.20 |
-| Trough Portfolio Value | $101,700.55 |
+| Maximum Drawdown | 5.00% |
+| Peak Portfolio Value | $102,415.40 |
+| Trough Portfolio Value | $97,295.60 |
 | Drawdown Start | 2025-09-15 16:00:57.524127 |
 | Drawdown End | 2025-09-15 16:01:00.439681 |
 | Drawdown Duration | 0 days |
@@ -61,25 +69,25 @@ This report analyzes the performance of the algorithmic trading strategy over th
 
 | Symbol | Quantity | Average Price | Market Value |
 |--------|----------|---------------|-------------|
-| AAPL | -20 | $91.28 | $-1,825.65 |
+| AAPL | 60 | $95.16 | $5,709.79 |
 
 
 ## Equity Curve
 
-```
-Portfolio Equity Curve\n================================================================================\nInitial: $100,000 | Final: $101,780 | Return: +1.8%\n\n  102127 │         ●                                                            \n  102105 │                     ●                                                \n  102082 │          ●         ●                                                 \n  102060 │●   ●         ●●●●●●                                                  \n  102037 │ ●●● ●  ●  ●●                                                         \n  102015 │      ●●              ●●                                              \n  101992 │             ●          ●                                             \n  101970 │                          ●                                           \n  101948 │                         ●    ●  ●                                    \n  101925 │                           ●●   ●                                     \n  101903 │                             ● ●    ●                                 \n  101880 │                                  ●● ●                                \n  101858 │                                      ●                               \n  101835 │                                                ●●                    \n  101813 │                                       ●     ●●   ●                   \n  101790 │                                           ●●  ●                  ●●● \n  101768 │                                        ●●●              ● ●●●● ●    ●\n  101745 │                                                   ●●   ● ●    ● ●    \n  101723 │                                                     ● ●              \n  101701 │──────────────────────────────────────────────────────●───────────────\n         └──────────────────────────────────────────────────────────────────────\n         16:00:55                                            16:01:01
-```
+![Portfolio Equity Curve](equity_curve.png)
+
+*Figure: Portfolio value evolution over time showing the cumulative performance of the trading strategy.*
 
 ## Performance Interpretation
 
 ### Overall Assessment
-The strategy generated a positive return of 1.78% over the testing period, with poor risk-adjusted returns as indicated by a low Sharpe ratio.
+The strategy experienced a negative return of -1.75% over the testing period, with poor risk-adjusted returns as indicated by a low Sharpe ratio.
 
 ### Risk Assessment
-The strategy experienced a maximum drawdown of 0.42%, which represents the largest peak-to-trough decline in portfolio value. This relatively low drawdown suggests good risk management.
+The strategy experienced a maximum drawdown of 5.00%, which represents the largest peak-to-trough decline in portfolio value. This relatively low drawdown suggests good risk management.
 
 ### Trading Effectiveness
-The strategy achieved a win rate of 48.0% with an order execution success rate of 89.9%. The win rate below 50% suggests the strategy may need refinement, though this could be acceptable if winning trades are larger than losing ones.
+The strategy achieved a win rate of 48.0% with an order execution success rate of 86.4%. The win rate below 50% suggests the strategy may need refinement, though this could be acceptable if winning trades are larger than losing ones.
 
 ### Recommendations
 Based on the analysis:

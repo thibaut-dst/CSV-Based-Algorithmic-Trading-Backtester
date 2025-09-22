@@ -74,12 +74,14 @@ class SMACrossoverStrategy(Strategy):
 
             # If short SMA crossed above long SMA → BUY
             if crossed_up and not self._in_position:
-                out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, reason="SMA cross up"))
+                out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, 
+                                 reason="SMA cross up", strategy="SMA_CROSSOVER"))
                 self._in_position = True
 
             # If short SMA crossed below long SMA → SELL
             elif crossed_down and self._in_position:
-                out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, reason="SMA cross down"))
+                out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, 
+                                 reason="SMA cross down", strategy="SMA_CROSSOVER"))
                 self._in_position = False
 
         # Remember current relationship for the next tick
@@ -127,12 +129,14 @@ class PriceChangeMomentumStrategy(Strategy):
 
         # If price jumped up enough → BUY
         if (not self._in_position) and (delta >= self._threshold):
-            out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, reason="Momentum up"))
+            out.append(Signal(tick.timestamp, tick.symbol, "BUY", self._qty, 
+                             reason="Momentum up", strategy="MOMENTUM"))
             self._in_position = True
 
         # If price dropped down enough → SELL
         elif self._in_position and (delta <= -self._threshold):
-            out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, reason="Momentum down"))
+            out.append(Signal(tick.timestamp, tick.symbol, "SELL", self._qty, 
+                             reason="Momentum down", strategy="MOMENTUM"))
             self._in_position = False
 
         # Update last seen price for next tick

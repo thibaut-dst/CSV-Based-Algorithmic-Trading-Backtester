@@ -8,9 +8,7 @@ This script demonstrates the complete workflow:
 4. Results analysis and reporting
 """
 
-import csv
 import logging
-from datetime import datetime
 from typing import List, Dict, Any
 
 from models import MarketDataPoint, Order, OrderError, ExecutionError
