@@ -23,8 +23,9 @@ class SMACrossoverStrategy(Strategy):
     SELL when short SMA crosses below long SMA.
     """
     
-    def __init__(self, symbol: str, short_window: int = 10, long_window: int = 30):
+    def __init__(self, symbol: str, short_window: int = 10, long_window: int = 30, capital: float):
         self._symbol = symbol
+        self._capital = capital
         self._short_window = short_window
         self._long_window = long_window
         self._price_history = deque(maxlen=long_window)

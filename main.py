@@ -28,11 +28,15 @@ def run_strategy_list():
 
     test_strat_1 = RandomBuyAndSellStrategy(symbol="AAPL", capital = 100000.0)
     amaz_strat_2 = RandomBuyAndSellStrategy(symbol="AMZN", capital = 20000.0)
+    sma_amaz_strat = SMACrossoverStrategy(symbol="AMZN", short_window=10, long_window=30, capital = 30000.0)
+
+    strat_list = [test_strat_1, amaz_strat_2, sma_amaz_strat]
+
 
     engine = ExecutionEngine(failure_rate=0.0, initial_capital=100000.0)
     engine.load_data("market_data.csv")
 
-    engine.run([test_strat_1, amaz_strat_2])
+    engine.run(strat_list)
     #orchestrator = TradingSystemOrchestrator(failure_rate=0.1)
 
     # print("Loading Market Data")
