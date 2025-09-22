@@ -142,3 +142,26 @@ class PriceChangeMomentumStrategy(Strategy):
         # Update last seen price for next tick
         self._last_price = tick.price
         return out
+
+# --------------------------
+# Strategy 3: Random buy and sell
+# --------------------------
+class RandomBuyAndSellStrategy(Strategy):
+    """
+    Randomly BUY or SELL 1 share.
+    """
+
+    def __init__(self, symbol: str, capital: float):
+        self._symbol = symbol
+        self._capital = capital
+
+    def generate_signals(self, tick: MarketDataPoint) -> List[Signal]:
+        if tick.symbol != self._symbol:
+            return []
+
+        out: List[Signal] = []
+
+        if random.random() < 0.5:
+            out.append(Signal(tick.timestamp, tick.symbol, "BUY", 1, reason="Random buy", strategy="RANDOM_BUY_AND_SELL"))
+
+        return out

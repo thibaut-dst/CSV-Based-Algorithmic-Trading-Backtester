@@ -14,7 +14,7 @@ from typing import List, Dict, Any
 from models import MarketDataPoint, Order, OrderError, ExecutionError
 from engine import ExecutionEngine
 from reporting import PerformanceAnalyzer
-from strategies import SMACrossoverStrategy, PriceChangeMomentumStrategy
+from strategies import SMACrossoverStrategy, PriceChangeMomentumStrategy, RandomBuyAndSellStrategy
 
 # Configure logging
 logging.basicConfig(
@@ -30,11 +30,10 @@ class TradingSystemOrchestrator:
     Handles data loading, strategy execution, and performance reporting.
     """
     
-    def __init__(self, failure_rate: float = 0.0, initial_capital: float = 100000.0):
+    def __init__(self, failure_rate: float = 0.0):
         """Initialize the trading system orchestrator."""
         self.engine = ExecutionEngine(failure_rate=failure_rate)
         self.strategies = []
-        self.initial_capital = initial_capital
         self.performance_analyzer = None
         self.logger = logging.getLogger(self.__class__.__name__)
         
@@ -59,6 +58,14 @@ class TradingSystemOrchestrator:
         except Exception as e:
             self.logger.error(f"Failed to load market data: {e}")
             return False
+
+
+
+
+
+
+
+    
     
     def configure_strategies(self, strategy_configs: List[Dict[str, Any]]) -> bool:
         """
@@ -124,7 +131,7 @@ class TradingSystemOrchestrator:
             self.engine.run(self.strategies)
             
             # Initialize performance analyzer after backtest completion
-            self.performance_analyzer = PerformanceAnalyzer(self.engine, self.initial_capital)
+            self.performance_analyzer = PerformanceAnalyzer(self.engine)
             
             self.logger.info("Backtest execution completed successfully")
             return True
@@ -209,12 +216,32 @@ def demo_error_handling():
             print(f"  - {error}")
 
 
+def run_strategy_list():
+
+    test_strat_1 = RandomBuyAndSellStrategy(symbol="AAPL", capital = 100000.0)
+
+    orchestrator = TradingSystemOrchestrator(failure_rate=0.1)
+
+    print("Loading Market Data")
+    if not orchestrator.load_market_data("market_data.csv"):
+        print("Failed to load market data")
+        return
+
+    print("Executing Backtest")
+    if not orchestrator.execute_backtest():
+        print("Failed backtest.")
+        return
+
+
+
+
+
 def run_complete_trading_system():
     """Run a complete demonstration of the trading system."""
     print("🚀 Starting Complete Trading System Demonstration")
     
     # Initialize the orchestrator with initial capital
-    orchestrator = TradingSystemOrchestrator(failure_rate=0.1, initial_capital=100000.0)
+    orchestrator = TradingSystemOrchestrator(failure_rate=0.1)
     
     # Step 1: Load market data
     print("\n📂 Step 1: Loading Market Data")
@@ -268,7 +295,8 @@ if __name__ == "__main__":
         demo_error_handling()
     else:
         # Run the complete trading system demonstration
-        run_complete_trading_system()
+        # run_complete_trading_system()
+        run_strategy_list()
         
         # Also run the error handling demo
         print("\n" + "="*60)
