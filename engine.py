@@ -10,7 +10,7 @@ from strategies import Strategy
 logger = logging.getLogger(__name__)
 
 
-class BacktestEngine:
+class ExecutionEngine:
     """
     Core engine that ties everything together:
     - Buffers market data
@@ -97,3 +97,4 @@ class BacktestEngine:
     @property
     def signals(self) -> List[Signal]:
         return self._signals
+
