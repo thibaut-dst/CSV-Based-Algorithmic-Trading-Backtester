@@ -706,3 +706,261 @@ Based on the analysis:
         print(f"Max Drawdown:        {risk['max_drawdown_pct']:.2f}%")
         print(f"Win Rate:            {trading['win_rate']:.1f}%")
         print("="*60)
+
+
+def generate_strategy_performance_plots(engine: ExecutionEngine, strategies: List):
+    """
+    Generate PNG plots showing holdings/portfolio value over time for all strategies.
+    
+    Args:
+        engine: ExecutionEngine instance with completed backtest
+        strategies: List of strategy instances used in the backtest
+    """
+    print("\n📊 Generating strategy performance plots...")
+    
+    if not engine._market_data:
+        print("❌ No market data available for plotting")
+        return
+    
+    # Group strategies by symbol and type for easier identification
+    strategy_groups = {}
+    for strategy in strategies:
+        symbol = strategy._symbol
+        strategy_type = type(strategy).__name__
+        key = f"{symbol}_{strategy_type}"
+        strategy_groups[key] = strategy
+    
+    # Get all unique timestamps from market data
+    timestamps = sorted(set(tick.timestamp for tick in engine._market_data))
+    initial_capital_per_strategy = engine.initial_capital / len(strategies)
+    
+    # Use the engine's strategy signals tracking to get better strategy performance data
+    strategy_portfolios = {}
+    
+    # Initialize portfolio tracking for each strategy using strategy names from engine
+    for strategy_name in engine._strategy_signals.keys():
+        strategy_portfolios[strategy_name] = {
+            'timestamps': [],
+            'values': [],
+            'cash': initial_capital_per_strategy,
+            'positions': {},
+            'trades': []
+        }
+    
+    # Process signals chronologically to reconstruct portfolio evolution
+    for timestamp in timestamps:
+        # Get all signals and orders for this timestamp
+        timestamp_signals = [s for s in engine.signals if s.timestamp == timestamp]
+        timestamp_orders = [o for o in engine.orders if hasattr(o, '_signal_timestamp') and o._signal_timestamp == timestamp]
+        
+        # Process each strategy's activity
+        for strategy_name, signals in engine._strategy_signals.items():
+            portfolio = strategy_portfolios[strategy_name]
+            
+            # Process signals for this strategy at this timestamp
+            strategy_signals = [s for s in timestamp_signals if s.strategy == strategy_name.split('_')[-1]]
+            
+            for signal in strategy_signals:
+                # Find corresponding order
+                corresponding_orders = [
+                    order for order in timestamp_orders 
+                    if order.symbol == signal.symbol and 
+                       order.quantity == signal.qty and
+                       order.status == "FILLED"
+                ]
+                
+                for order in corresponding_orders:
+                    if signal.side == 'BUY':
+                        cost = order.quantity * order.price
+                        portfolio['cash'] -= cost
+                        if signal.symbol not in portfolio['positions']:
+                            portfolio['positions'][signal.symbol] = 0
+                        portfolio['positions'][signal.symbol] += order.quantity
+                        portfolio['trades'].append(('BUY', timestamp, order.quantity, order.price))
+                    
+                    elif signal.side == 'SELL':
+                        proceeds = order.quantity * order.price
+                        portfolio['cash'] += proceeds
+                        if signal.symbol in portfolio['positions']:
+                            portfolio['positions'][signal.symbol] -= order.quantity
+                            if portfolio['positions'][signal.symbol] <= 0:
+                                del portfolio['positions'][signal.symbol]
+                        portfolio['trades'].append(('SELL', timestamp, order.quantity, order.price))
+            
+            # Calculate current portfolio value using latest market prices
+            current_value = portfolio['cash']
+            for symbol, quantity in portfolio['positions'].items():
+                # Get latest price for this symbol at this timestamp
+                latest_price = None
+                for tick in engine._market_data:
+                    if tick.symbol == symbol and tick.timestamp <= timestamp:
+                        latest_price = tick.price
+                if latest_price:
+                    current_value += quantity * latest_price
+            
+            # Store snapshot
+            portfolio['timestamps'].append(timestamp)
+            portfolio['values'].append(current_value)
+    
+    # Create individual plots for each strategy
+    plot_count = 0
+    for strategy_name, portfolio in strategy_portfolios.items():
+        if len(portfolio['timestamps']) < 2:
+            continue
+            
+        plt.figure(figsize=(12, 8))
+        
+        # Plot portfolio value over time
+        plt.subplot(2, 1, 1)
+        plt.plot(portfolio['timestamps'], portfolio['values'], linewidth=2, label='Portfolio Value', color='blue')
+        plt.axhline(y=initial_capital_per_strategy, color='red', linestyle='--', alpha=0.7, label='Initial Capital')
+        plt.title(f'{strategy_name} - Portfolio Value Over Time', fontsize=14, fontweight='bold')
+        plt.ylabel('Portfolio Value ($)')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Format y-axis as currency
+        plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+        
+        # Add trade markers
+        for trade_type, trade_timestamp, quantity, price in portfolio['trades']:
+            try:
+                # Find index of this timestamp in portfolio timestamps
+                if trade_timestamp in portfolio['timestamps']:
+                    idx = portfolio['timestamps'].index(trade_timestamp)
+                    color = 'green' if trade_type == 'BUY' else 'red'
+                    marker = '^' if trade_type == 'BUY' else 'v'
+                    plt.scatter(trade_timestamp, portfolio['values'][idx], 
+                               color=color, marker=marker, s=50, alpha=0.7, zorder=5)
+            except (ValueError, IndexError):
+                continue  # Skip if timestamp not found
+        
+        # Plot cash vs position values over time
+        plt.subplot(2, 1, 2)
+        
+        # Calculate position values over time
+        position_values = []
+        cash_values = []
+        
+        for i, timestamp in enumerate(portfolio['timestamps']):
+            # Calculate position value at this timestamp
+            pos_value = 0
+            for symbol, quantity in portfolio['positions'].items():
+                # Get price at this timestamp
+                price_at_timestamp = None
+                for tick in engine._market_data:
+                    if tick.symbol == symbol and tick.timestamp <= timestamp:
+                        price_at_timestamp = tick.price
+                if price_at_timestamp:
+                    pos_value += quantity * price_at_timestamp
+            
+            position_values.append(pos_value)
+            cash_values.append(portfolio['cash'])  # Note: this is simplified, cash changes with trades
+        
+        plt.plot(portfolio['timestamps'], position_values, linewidth=2, color='orange', label='Position Value')
+        plt.plot(portfolio['timestamps'], cash_values, linewidth=2, color='green', label='Available Cash')
+        plt.title(f'{strategy_name} - Cash vs Position Value', fontsize=14, fontweight='bold')
+        plt.ylabel('Value ($)')
+        plt.xlabel('Time')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Format y-axis as currency
+        plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+        
+        # Format x-axis
+        plt.xticks(rotation=45)
+        
+        # Save plot
+        filename = f"strategy_performance_{strategy_name}.png"
+        plt.tight_layout()
+        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"  ✅ Generated: {filename}")
+        plot_count += 1
+    
+    # Create summary plot with all strategies
+    plt.figure(figsize=(15, 10))
+    
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
+    
+    for i, (strategy_name, portfolio) in enumerate(strategy_portfolios.items()):
+        if len(portfolio['timestamps']) < 2:
+            continue
+        color = colors[i % len(colors)]
+        
+        # Calculate total return percentage for legend
+        initial_value = portfolio['values'][0] if portfolio['values'] else initial_capital_per_strategy
+        final_value = portfolio['values'][-1] if portfolio['values'] else initial_capital_per_strategy
+        return_pct = ((final_value - initial_value) / initial_value) * 100 if initial_value > 0 else 0
+        
+        label = f'{strategy_name} ({return_pct:+.2f}%)'
+        plt.plot(portfolio['timestamps'], portfolio['values'], 
+                linewidth=2, label=label, color=color, alpha=0.8)
+    
+    plt.axhline(y=initial_capital_per_strategy, color='black', linestyle='--', 
+               alpha=0.7, label=f'Initial Capital (${initial_capital_per_strategy:,.0f})')
+    plt.title('All Strategies Performance Comparison', fontsize=16, fontweight='bold')
+    plt.ylabel('Portfolio Value ($)')
+    plt.xlabel('Time')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, alpha=0.3)
+    plt.xticks(rotation=45)
+    
+    # Format y-axis as currency
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+    
+    # Save summary plot
+    summary_filename = "all_strategies_performance.png"
+    plt.tight_layout()
+    plt.savefig(summary_filename, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"  ✅ Generated: {summary_filename}")
+    print(f"📊 Generated {plot_count + 1} performance plots total")
+
+
+def print_backtest_results(engine: ExecutionEngine, strategies: List):
+    """
+    Print comprehensive backtest results to console and generate performance plots.
+    
+    Args:
+        engine: ExecutionEngine instance with completed backtest
+        strategies: List of strategy instances used in the backtest
+    """
+    print("\n" + "="*60)
+    print("BACKTEST RESULTS")
+    print("="*60)
+    
+    # Print capital summary
+    capital_summary = engine.get_capital_summary()
+    print(f"\nInitial Capital: ${capital_summary['initial_capital']:,.2f}")
+    print(f"Current Portfolio Value: ${capital_summary['current_portfolio_value']:,.2f}")
+    print(f"Total Return: ${capital_summary['current_portfolio_value'] - capital_summary['initial_capital']:,.2f}")
+    
+    print(f"\nStrategy Performance:")
+    for strategy_name, total_value in capital_summary['strategies_current'].items():
+        initial_per_strategy = capital_summary['initial_capital'] / len(strategies)
+        pnl = total_value - initial_per_strategy
+        pnl_pct = (pnl / initial_per_strategy) * 100
+        print(f"  {strategy_name}: ${total_value:,.2f} (P&L: ${pnl:,.2f}, {pnl_pct:+.2f}%)")
+    
+    # Print basic stats
+    print(f"\nTrade Statistics:")
+    print(f"  Total Signals: {len(engine.signals)}")
+    print(f"  Total Orders: {len(engine.orders)}")
+    print(f"  Filled Orders: {sum(1 for order in engine.orders if order.status == 'FILLED')}")
+    print(f"  Failed Orders: {sum(1 for order in engine.orders if order.status == 'FAILED')}")
+    
+    # Print positions
+    print(f"\nFinal Positions:")
+    for symbol, position in engine.positions.items():
+        if position['quantity'] != 0:
+            value = position['quantity'] * position['avg_price']
+            print(f"  {symbol}: {position['quantity']} shares @ ${position['avg_price']:.2f} = ${value:,.2f}")
+    
+    # Generate performance plots
+    generate_strategy_performance_plots(engine, strategies)
+    
+    print("\n✅ Backtest completed!")
