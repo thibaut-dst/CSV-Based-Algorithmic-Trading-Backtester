@@ -82,11 +82,11 @@ def generate_market_csv(
 if __name__ == "__main__":
     # Example: generate 500 ticks for AAPL starting at $150.00 into a file
     generate_market_csv(
-        symbol="AAPL",
-        start_price=150.0,
+        symbol="AMZN",
+        start_price=400.0,
         filename="market_data.csv",
         num_ticks=500,
-        volatility=0.02,
+        volatility=2.1,
         interval=0.01
     )
     print("market_data.csv generated with 500 ticks.")
