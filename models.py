@@ -2,16 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from abc import ABC, abstractmethod
 import logging
-
-# Custom exceptions
-class OrderError(Exception):
-    """Raised when an order has invalid parameters"""
-    pass
-
-class ExecutionError(Exception):
-    """Raised when order execution fails"""
-    pass
-
+import random
 
 @dataclass(frozen=True)
 class MarketDataPoint:
@@ -65,10 +56,13 @@ class Order:
         self._status = value
 
 
-class Strategy(ABC):
-    @abstractmethod
-    def generate_signals(self, tick: MarketDataPoint) -> list:
-        pass
+class OrderError(Exception):
+    """Raised when an order has invalid parameters"""
+    pass
+
+class ExecutionError(Exception):
+    """Raised when order execution fails"""
+    pass
 
 
 class ExecutionEngine:
@@ -97,7 +91,6 @@ class ExecutionEngine:
         Raises:
             ExecutionError: When execution fails
         """
-        import random
         
         # Simulate occasional execution failures
         if random.random() < self.failure_rate:
@@ -140,4 +133,3 @@ class ExecutionEngine:
                 self.logger.error(f"Unexpected error during order execution: {e}")
         
         return results
-

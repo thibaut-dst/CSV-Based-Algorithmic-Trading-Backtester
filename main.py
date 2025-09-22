@@ -5,16 +5,18 @@ from dataclasses import dataclass, FrozenInstanceError
 from datetime import datetime
 from models import MarketDataPoint, Order, OrderError, ExecutionError, ExecutionEngine
 
-
-
-
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 market_data_points = []
+
+positions = {
+    "AAPL": {"quantity": 0, "avg_price": 0.0},
+    "MSFT": {"quantity": 0, "avg_price": 0.0}
+}
+
 
 with open('market_data.csv', 'r', newline='') as file:
     reader = csv.reader(file)
