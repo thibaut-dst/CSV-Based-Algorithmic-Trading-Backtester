@@ -1,102 +1,159 @@
 # Trading Strategy Performance Report
 
-Generated on: 2025-09-22 00:54:45
+**Generated:** 2025-09-22 02:00:12  
+**Backtest Period:** 2025-09-15T16:00:55.757130 to 2025-09-21T23:53:16.260874  
+**Total Market Ticks:** 1,500
+
+---
 
 ## Executive Summary
 
-This report analyzes the performance of the algorithmic trading strategy over the period from 2025-09-15T16:00:55.757130 to 2025-09-21T23:53:16.260874.
+This report analyzes the performance of 2 algorithmic trading strategies over the backtest period.
 
-**Key Highlights:**
-- **Total Return**: -20.57%
-- **Sharpe Ratio**: -0.391
-- **Maximum Drawdown**: 53.79%
-- **Win Rate**: 48.1%
+**Key Performance Highlights:**
+- **Total Portfolio Return:** -0.78%
+- **Absolute Profit/Loss:** $-784.29
+- **Risk-Adjusted Return (Sharpe):** -3.016
+- **Maximum Drawdown:** 2.86%
+- **Win Rate:** 48.1%
 
-## Portfolio Performance
+---
 
-| Metric | Value |
-|--------|-------|
-| Initial Capital | $100,000.00 |
-| Final Portfolio Value | $79,425.35 |
-| Total Return | -20.57% |
-| Absolute Profit/Loss | $-20,574.65 |
-
-## Risk Metrics
+## Portfolio Performance Metrics
 
 | Metric | Value |
-|--------|-------|
-| Sharpe Ratio | -0.391 |
-| Maximum Drawdown | 53.79% |
-| Volatility (Daily) | 1.22% |
-| Best Period Return | +7.18% |
-| Worst Period Return | -6.60% |
+|--------|--------|
+| **Initial Capital** | $100,000.00 |
+| **Final Portfolio Value** | $99,215.71 |
+| **Total Return** | -0.78% |
+| **Absolute P&L** | $-784.29 |
+| **Average Daily Return** | -0.001% |
+
+---
+
+## Risk Analysis
+
+| Metric | Value | Interpretation |
+|--------|--------|----------------|
+| **Sharpe Ratio** | -3.016 | Poor risk-adjusted performance |
+| **Maximum Drawdown** | 2.86% | Low maximum loss from peak |
+| **Volatility (Daily)** | 0.05% | Daily portfolio volatility |
+| **Best Period Return** | +0.28% | Single best trading period |
+| **Worst Period Return** | -0.27% | Single worst trading period |
+
+---
+
+## Strategy Performance Breakdown
+
+| Strategy | Initial Capital | Final Value | Return | P&L |
+|----------|----------------|-------------|--------|-----|
+| **RandomBuyAndSellStrategy_AAPL** | $50,000.00 | $49,996.41 | -0.01% | $-3.59 |
+| **RandomBuyAndSellStrategy_AMZN** | $50,000.00 | $50,000.00 | +0.00% | $+0.00 |
+
+---
 
 ## Trading Statistics
 
 | Metric | Value |
-|--------|-------|
-| Total Signals Generated | 139 |
-| Total Orders Placed | 163 |
-| Successful Orders | 139 |
-| Failed Orders | 24 |
-| Order Success Rate | 85.3% |
-| Total Trading Periods | 1499 |
-| Winning Periods | 239 |
-| Losing Periods | 258 |
-| Win Rate | 48.1% |
-| Average Period Return | -0.022% |
+|--------|--------|
+| **Total Signals Generated** | 34 |
+| **Total Orders Placed** | 34 |
+| **Successful Orders** | 34 |
+| **Failed Orders** | 0 |
+| **Order Success Rate** | 100.0% |
+| **Total Trading Periods** | 1499 |
+| **Winning Periods** | 239 |
+| **Losing Periods** | 258 |
+| **Win Rate** | 48.1% |
 
-## Strategy Analysis
+---
 
-| Strategy | Signals | Orders | Success Rate | Failed Orders |
-|----------|---------|--------|--------------|---------------|
-| MOMENTUM | 108 | 0 | 0.0% | 0 |
-| SMA_CROSSOVER | 31 | 0 | 0.0% | 0 |
+## Periodic Returns Analysis
 
+**Sample of Recent Returns** (Last 10 periods):
 
-## Drawdown Analysis
+| Period | Return |
+|--------|--------|
+| Period 1490 | +0.000% |
+| Period 1491 | +0.000% |
+| Period 1492 | +0.000% |
+| Period 1493 | +0.000% |
+| Period 1494 | +0.000% |
+| Period 1495 | +0.000% |
+| Period 1496 | +0.000% |
+| Period 1497 | +0.000% |
+| Period 1498 | +0.000% |
+| Period 1499 | +0.000% |
 
-| Metric | Value |
-|--------|-------|
-| Maximum Drawdown | 53.79% |
-| Peak Portfolio Value | $134,828.35 |
-| Trough Portfolio Value | $62,297.85 |
-| Drawdown Start | 2025-09-15 16:00:57.524127 |
-| Drawdown End | 2025-09-15 16:01:00.439681 |
-| Drawdown Duration | 0 days |
-
-## Current Positions
-
-| Symbol | Quantity | Average Price | Market Value |
-|--------|----------|---------------|-------------|
-| AAPL | 5 | $92.32 | $461.60 |
+**Returns Summary:**
+- Average Period Return: -0.001%
+- Positive Periods: 239/1499 (15.9%)
+- Total Periods Analyzed: 1499
 
 
-## Equity Curve
+---
 
-![Portfolio Equity Curve](equity_curve.png)
+## Equity Curve Analysis
 
-*Figure: Portfolio value evolution over time showing the cumulative performance of the trading strategy.*
+![Strategy Performance Comparison](all_strategies_equity_curve.png)
+
+*Figure: Portfolio value evolution over time showing the performance of each strategy.*
+
+---
 
 ## Performance Interpretation
 
 ### Overall Assessment
-The strategy experienced a negative return of -20.57% over the testing period, with poor risk-adjusted returns as indicated by a low Sharpe ratio.
+The portfolio experienced a **negative return of -0.78%**, indicating losses during the backtest period. The Sharpe ratio of -3.016 suggests **poor risk-adjusted performance**. 
 
-### Risk Assessment
-The strategy experienced a maximum drawdown of 53.79%, which represents the largest peak-to-trough decline in portfolio value. This high drawdown indicates significant risk and potential for large losses.
+### Risk Profile
+The strategy experienced a maximum drawdown of **2.86%**, representing the largest peak-to-trough decline. This is considered a **low-risk** drawdown level.
 
 ### Trading Effectiveness
-The strategy achieved a win rate of 48.1% with an order execution success rate of 85.3%. The win rate below 50% suggests the strategy may need refinement, though this could be acceptable if winning trades are larger than losing ones.
+- **Win Rate:** 48.1% of trading periods were profitable
+- **Execution Quality:** 100.0% order success rate
+- **Strategy Diversity:** 2 different strategies deployed
 
-### Recommendations
-Based on the analysis:
-
-1. **Risk Management**: Consider implementing stricter risk controls to reduce drawdown.
-2. **Strategy Optimization**: Focus on improving trade selection criteria to increase win rate.
-3. **Performance**: The strategy requires further development before considering live implementation.
+### Strategy Analysis
+- **Top Performer:** RandomBuyAndSellStrategy_AMZN with +0.00% return
+- **Underperformer:** RandomBuyAndSellStrategy_AAPL with -0.01% return
+- **Portfolio Effect:** Diversification across strategies did not prevent overall losses
 
 ---
 
-*This report was generated automatically by the CSV-Based Algorithmic Trading Backtester.*
-*Past performance does not guarantee future results.*
+## Recommendations
+
+### 1. Strategy Optimization
+- **Improve Win Rate:** Current win rate is below 50%. Consider refining entry/exit criteria.
+
+### 2. Risk Management
+- **Risk Control:** Current drawdown levels are acceptable. Maintain existing risk controls.
+
+### 3. Performance Enhancement
+- **Strategy Review:** Re-evaluate strategy parameters, market conditions, and implementation before live deployment.
+
+---
+
+## Final Positions
+
+| Symbol | Quantity | Avg Price | Current Value |
+|--------|----------|-----------|---------------|
+
+
+---
+
+## Appendix
+
+**Data Sources:**
+- Market Data: CSV file with 1,500 price ticks
+- Strategies Tested: RandomBuyAndSellStrategy(AAPL), RandomBuyAndSellStrategy(AMZN)
+
+**Risk Disclaimers:**
+- Past performance does not guarantee future results
+- All investments carry risk of loss
+- This analysis is for educational purposes only
+
+---
+
+*Report generated by CSV-Based Algorithmic Trading Backtester*  
+*Generation Time: 2025-09-22 02:00:12*

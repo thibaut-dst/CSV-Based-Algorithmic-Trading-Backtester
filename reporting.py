@@ -963,4 +963,424 @@ def print_backtest_results(engine: ExecutionEngine, strategies: List):
     # Generate performance plots
     generate_strategy_performance_plots(engine, strategies)
     
+    # Generate comprehensive markdown report
+    generate_performance_report(engine, strategies)
+    
     print("\n✅ Backtest completed!")
+
+
+def generate_performance_report(engine: ExecutionEngine, strategies: List):
+    """
+    Generate a comprehensive performance.md report with metrics tables, equity curves, and narrative.
+    
+    Args:
+        engine: ExecutionEngine instance with completed backtest
+        strategies: List of strategy instances used in the backtest
+    """
+    print("\n📊 Generating comprehensive performance report...")
+    
+    # Initialize performance analyzer
+    analyzer = PerformanceAnalyzer(engine, engine.initial_capital)
+    analyzer.calculate_portfolio_history()
+    analyzer.calculate_returns()
+    metrics = analyzer.calculate_all_metrics()
+    
+    # Generate equity curve chart for all strategies
+    equity_chart_filename = "all_strategies_equity_curve.png"
+    generate_multi_strategy_equity_curve(engine, strategies, equity_chart_filename)
+    
+    # Create the markdown report
+    report_content = create_comprehensive_markdown_report(engine, strategies, metrics, equity_chart_filename)
+    
+    # Write to file
+    report_filename = "performance.md"
+    with open(report_filename, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    
+    print(f"  ✅ Generated: {report_filename}")
+    print(f"  ✅ Generated: {equity_chart_filename}")
+
+
+def generate_multi_strategy_equity_curve(engine: ExecutionEngine, strategies: List, filename: str):
+    """
+    Generate an equity curve plot showing all strategies on the same chart.
+    
+    Args:
+        engine: ExecutionEngine instance with completed backtest
+        strategies: List of strategy instances used in the backtest
+        filename: Output filename for the chart
+    """
+    if not engine.capital_history:
+        print("❌ No capital history available for equity curve")
+        return
+    
+    plt.figure(figsize=(14, 10))
+    
+    # Extract timestamps and values for each strategy
+    timestamps = []
+    strategy_values = {}
+    
+    # Initialize strategy tracking
+    for strategy in strategies:
+        strategy_name = f"{strategy.__class__.__name__}_{strategy._symbol}"
+        strategy_values[strategy_name] = []
+    
+    # Process capital history to extract strategy performance over time
+    for snapshot in engine.capital_history:
+        if snapshot.get("strategies"):
+            for strategy_name in strategy_values.keys():
+                if strategy_name in snapshot["strategies"]:
+                    # Handle both old and new formats
+                    strategy_data = snapshot["strategies"][strategy_name]
+                    if isinstance(strategy_data, dict) and "total" in strategy_data:
+                        strategy_values[strategy_name].append(strategy_data["total"])
+                    elif isinstance(strategy_data, (int, float)):
+                        # Old format - just a number
+                        strategy_values[strategy_name].append(strategy_data)
+                    else:
+                        # Fallback - use last known value
+                        if strategy_values[strategy_name]:
+                            strategy_values[strategy_name].append(strategy_values[strategy_name][-1])
+                        else:
+                            initial_capital = engine.initial_capital / len(strategies)
+                            strategy_values[strategy_name].append(initial_capital)
+                else:
+                    # If no data for this snapshot, use last known value or initial
+                    if strategy_values[strategy_name]:
+                        strategy_values[strategy_name].append(strategy_values[strategy_name][-1])
+                    else:
+                        initial_capital = engine.initial_capital / len(strategies)
+                        strategy_values[strategy_name].append(initial_capital)
+    
+    # Create timestamps (use index if no actual timestamps available)
+    if len(strategy_values) > 0:
+        first_strategy = list(strategy_values.keys())[0]
+        timestamps = list(range(len(strategy_values[first_strategy])))
+    
+    # Plot each strategy
+    colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E', '#8E44AD']
+    
+    for i, (strategy_name, values) in enumerate(strategy_values.items()):
+        if len(values) > 1:
+            color = colors[i % len(colors)]
+            
+            # Calculate total return for legend
+            initial_value = values[0] if values else engine.initial_capital / len(strategies)
+            final_value = values[-1] if values else initial_value
+            total_return = ((final_value - initial_value) / initial_value) * 100 if initial_value > 0 else 0
+            
+            plt.plot(timestamps, values, linewidth=2.5, color=color, alpha=0.8,
+                    label=f'{strategy_name} ({total_return:+.1f}%)')
+    
+    # Add initial capital reference line
+    initial_capital_per_strategy = engine.initial_capital / len(strategies)
+    plt.axhline(y=initial_capital_per_strategy, color='black', linestyle='--', 
+               alpha=0.7, linewidth=1, label=f'Initial Capital (${initial_capital_per_strategy:,.0f})')
+    
+    # Formatting
+    plt.title('Strategy Performance - Equity Curves Comparison', fontsize=16, fontweight='bold', pad=20)
+    plt.xlabel('Time (Trades)', fontsize=12)
+    plt.ylabel('Portfolio Value ($)', fontsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, alpha=0.3)
+    
+    # Format y-axis as currency
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+    
+    # Save the chart
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
+    plt.close()
+
+
+def create_comprehensive_markdown_report(engine: ExecutionEngine, strategies: List, metrics: Dict, equity_chart_filename: str) -> str:
+    """
+    Create comprehensive markdown content for the performance report.
+    
+    Args:
+        engine: ExecutionEngine instance with completed backtest
+        strategies: List of strategy instances used in the backtest
+        metrics: Performance metrics dictionary
+        equity_chart_filename: Filename of the equity curve chart
+        
+    Returns:
+        Markdown content string
+    """
+    # Get current timestamp
+    report_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Extract key metrics
+    portfolio = metrics['portfolio_performance']
+    risk = metrics['risk_metrics']
+    trading = metrics['trading_statistics']
+    execution = metrics['execution_summary']
+    
+    # Calculate per-strategy metrics
+    strategy_metrics = calculate_per_strategy_metrics(engine, strategies)
+    
+    # Create periodic returns table
+    analyzer = PerformanceAnalyzer(engine, engine.initial_capital)
+    analyzer.calculate_portfolio_history()
+    returns_series = analyzer.calculate_returns()
+    
+    content = f"""# Trading Strategy Performance Report
+
+**Generated:** {report_timestamp}  
+**Backtest Period:** {metrics['time_period']['start']} to {metrics['time_period']['end']}  
+**Total Market Ticks:** {metrics['time_period']['total_ticks']:,}
+
+---
+
+## Executive Summary
+
+This report analyzes the performance of {len(strategies)} algorithmic trading strategies over the backtest period.
+
+**Key Performance Highlights:**
+- **Total Portfolio Return:** {portfolio['total_return_pct']:+.2f}%
+- **Absolute Profit/Loss:** ${portfolio['profit_loss']:+,.2f}
+- **Risk-Adjusted Return (Sharpe):** {risk['sharpe_ratio']:.3f}
+- **Maximum Drawdown:** {risk['max_drawdown_pct']:.2f}%
+- **Win Rate:** {trading['win_rate']:.1f}%
+
+---
+
+## Portfolio Performance Metrics
+
+| Metric | Value |
+|--------|--------|
+| **Initial Capital** | ${portfolio['initial_capital']:,.2f} |
+| **Final Portfolio Value** | ${portfolio['final_value']:,.2f} |
+| **Total Return** | {portfolio['total_return_pct']:+.2f}% |
+| **Absolute P&L** | ${portfolio['profit_loss']:+,.2f} |
+| **Average Daily Return** | {trading['average_return_pct']:+.3f}% |
+
+---
+
+## Risk Analysis
+
+| Metric | Value | Interpretation |
+|--------|--------|----------------|
+| **Sharpe Ratio** | {risk['sharpe_ratio']:.3f} | {'Excellent' if risk['sharpe_ratio'] > 1.0 else 'Good' if risk['sharpe_ratio'] > 0.5 else 'Poor'} risk-adjusted performance |
+| **Maximum Drawdown** | {risk['max_drawdown_pct']:.2f}% | {'Low' if risk['max_drawdown_pct'] < 10 else 'Moderate' if risk['max_drawdown_pct'] < 20 else 'High'} maximum loss from peak |
+| **Volatility (Daily)** | {risk['volatility']*100:.2f}% | Daily portfolio volatility |
+| **Best Period Return** | {risk['best_period_return']*100:+.2f}% | Single best trading period |
+| **Worst Period Return** | {risk['worst_period_return']*100:+.2f}% | Single worst trading period |
+
+---
+
+## Strategy Performance Breakdown
+
+| Strategy | Initial Capital | Final Value | Return | P&L |
+|----------|----------------|-------------|--------|-----|"""
+
+    # Add strategy-specific rows
+    for strategy_name, metrics_data in strategy_metrics.items():
+        initial = metrics_data['initial_capital']
+        final = metrics_data['final_value']
+        return_pct = metrics_data['return_pct']
+        pnl = metrics_data['pnl']
+        content += f"\n| **{strategy_name}** | ${initial:,.2f} | ${final:,.2f} | {return_pct:+.2f}% | ${pnl:+,.2f} |"
+
+    content += f"""
+
+---
+
+## Trading Statistics
+
+| Metric | Value |
+|--------|--------|
+| **Total Signals Generated** | {execution['total_signals']} |
+| **Total Orders Placed** | {execution['total_orders']} |
+| **Successful Orders** | {execution['successful_orders']} |
+| **Failed Orders** | {execution['failed_orders']} |
+| **Order Success Rate** | {execution['success_rate']:.1f}% |
+| **Total Trading Periods** | {trading['total_periods']} |
+| **Winning Periods** | {trading['winning_periods']} |
+| **Losing Periods** | {trading['losing_periods']} |
+| **Win Rate** | {trading['win_rate']:.1f}% |
+
+---
+
+## Periodic Returns Analysis
+
+**Sample of Recent Returns** (Last 10 periods):
+"""
+
+    # Add periodic returns table
+    if len(returns_series) > 0:
+        content += "\n| Period | Return |\n|--------|--------|\n"
+        # Show last 10 returns
+        recent_returns = returns_series[-10:] if len(returns_series) >= 10 else returns_series
+        for i, ret in enumerate(recent_returns, 1):
+            content += f"| Period {len(returns_series) - len(recent_returns) + i} | {ret*100:+.3f}% |\n"
+        
+        # Add summary statistics
+        avg_return = sum(returns_series) / len(returns_series) * 100
+        positive_periods = sum(1 for r in returns_series if r > 0)
+        content += f"""
+**Returns Summary:**
+- Average Period Return: {avg_return:+.3f}%
+- Positive Periods: {positive_periods}/{len(returns_series)} ({positive_periods/len(returns_series)*100:.1f}%)
+- Total Periods Analyzed: {len(returns_series)}
+"""
+    else:
+        content += "\n*No periodic returns data available.*\n"
+
+    content += f"""
+
+---
+
+## Equity Curve Analysis
+
+![Strategy Performance Comparison]({equity_chart_filename})
+
+*Figure: Portfolio value evolution over time showing the performance of each strategy.*
+
+---
+
+## Performance Interpretation
+
+### Overall Assessment
+"""
+
+    # Add performance interpretation
+    if portfolio['total_return'] > 0:
+        content += f"The portfolio generated a **positive return of {portfolio['total_return_pct']:+.2f}%**, demonstrating profitable performance over the backtest period. "
+    else:
+        content += f"The portfolio experienced a **negative return of {portfolio['total_return_pct']:+.2f}%**, indicating losses during the backtest period. "
+
+    # Risk assessment
+    if risk['sharpe_ratio'] > 1.0:
+        content += f"The Sharpe ratio of {risk['sharpe_ratio']:.3f} indicates **excellent risk-adjusted performance**. "
+    elif risk['sharpe_ratio'] > 0.5:
+        content += f"The Sharpe ratio of {risk['sharpe_ratio']:.3f} shows **acceptable risk-adjusted returns**. "
+    else:
+        content += f"The Sharpe ratio of {risk['sharpe_ratio']:.3f} suggests **poor risk-adjusted performance**. "
+
+    content += f"""
+
+### Risk Profile
+The strategy experienced a maximum drawdown of **{risk['max_drawdown_pct']:.2f}%**, representing the largest peak-to-trough decline. """
+
+    if risk['max_drawdown_pct'] < 10:
+        content += "This is considered a **low-risk** drawdown level."
+    elif risk['max_drawdown_pct'] < 20:
+        content += "This represents a **moderate risk** level that is acceptable for most strategies."
+    else:
+        content += "This is a **high-risk** drawdown that may require strategy refinement."
+
+    content += f"""
+
+### Trading Effectiveness
+- **Win Rate:** {trading['win_rate']:.1f}% of trading periods were profitable
+- **Execution Quality:** {execution['success_rate']:.1f}% order success rate
+- **Strategy Diversity:** {len(strategies)} different strategies deployed
+
+"""
+
+    # Strategy-specific insights
+    best_strategy = max(strategy_metrics.items(), key=lambda x: x[1]['return_pct'])
+    worst_strategy = min(strategy_metrics.items(), key=lambda x: x[1]['return_pct'])
+    
+    content += f"""### Strategy Analysis
+- **Top Performer:** {best_strategy[0]} with {best_strategy[1]['return_pct']:+.2f}% return
+- **Underperformer:** {worst_strategy[0]} with {worst_strategy[1]['return_pct']:+.2f}% return
+- **Portfolio Effect:** Diversification across strategies {'helped reduce' if len([s for s in strategy_metrics.values() if s['return_pct'] > 0]) > len([s for s in strategy_metrics.values() if s['return_pct'] < 0]) else 'did not prevent'} overall losses
+
+---
+
+## Recommendations
+
+### 1. Strategy Optimization
+"""
+    
+    if trading['win_rate'] < 50:
+        content += "- **Improve Win Rate:** Current win rate is below 50%. Consider refining entry/exit criteria."
+    else:
+        content += "- **Maintain Win Rate:** Good win rate above 50%. Focus on preserving current strategy effectiveness."
+
+    content += f"""
+
+### 2. Risk Management
+"""
+    
+    if risk['max_drawdown_pct'] > 15:
+        content += "- **Reduce Drawdown:** Implement tighter stop-losses or position sizing to limit maximum drawdown."
+    else:
+        content += "- **Risk Control:** Current drawdown levels are acceptable. Maintain existing risk controls."
+
+    content += f"""
+
+### 3. Performance Enhancement
+"""
+    
+    if portfolio['total_return'] > 0 and risk['sharpe_ratio'] > 0.5:
+        content += "- **Scale Strategy:** Consider increasing position sizes or capital allocation given positive risk-adjusted returns."
+    else:
+        content += "- **Strategy Review:** Re-evaluate strategy parameters, market conditions, and implementation before live deployment."
+
+    content += """
+
+---
+
+## Final Positions
+
+"""
+
+    # Add current positions
+    if engine.positions:
+        content += "| Symbol | Quantity | Avg Price | Current Value |\n|--------|----------|-----------|---------------|\n"
+        for symbol, position in engine.positions.items():
+            if position['quantity'] > 0:
+                current_value = position['quantity'] * position['avg_price']
+                content += f"| {symbol} | {position['quantity']} | ${position['avg_price']:.2f} | ${current_value:,.2f} |\n"
+    else:
+        content += "*No open positions at end of backtest.*\n"
+
+    content += f"""
+
+---
+
+## Appendix
+
+**Data Sources:**
+- Market Data: CSV file with {metrics['time_period']['total_ticks']:,} price ticks
+- Strategies Tested: {', '.join([f"{s.__class__.__name__}({s._symbol})" for s in strategies])}
+
+**Risk Disclaimers:**
+- Past performance does not guarantee future results
+- All investments carry risk of loss
+- This analysis is for educational purposes only
+
+---
+
+*Report generated by CSV-Based Algorithmic Trading Backtester*  
+*Generation Time: {report_timestamp}*
+"""
+
+    return content
+
+
+def calculate_per_strategy_metrics(engine: ExecutionEngine, strategies: List) -> Dict:
+    """Calculate performance metrics for each strategy individually."""
+    strategy_metrics = {}
+    initial_capital_per_strategy = engine.initial_capital / len(strategies)
+    
+    for strategy in strategies:
+        strategy_name = f"{strategy.__class__.__name__}_{strategy._symbol}"
+        
+        # Get final value for this strategy
+        final_value = engine.get_strategy_total_holdings(strategy_name).get('total_holdings', initial_capital_per_strategy)
+        
+        # Calculate metrics
+        pnl = final_value - initial_capital_per_strategy
+        return_pct = (pnl / initial_capital_per_strategy) * 100 if initial_capital_per_strategy > 0 else 0
+        
+        strategy_metrics[strategy_name] = {
+            'initial_capital': initial_capital_per_strategy,
+            'final_value': final_value,
+            'pnl': pnl,
+            'return_pct': return_pct
+        }
+    
+    return strategy_metrics
