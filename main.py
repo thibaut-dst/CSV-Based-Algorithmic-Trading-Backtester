@@ -1,35 +1,171 @@
-import csv
-import dataclasses
-import logging
-from dataclasses import dataclass, FrozenInstanceError
-from datetime import datetime
-from models import MarketDataPoint, Order, OrderError, ExecutionError, ExecutionEngine
+#!/usr/bin/env python3
+"""
+Main orchestration script for the CSV-Based Algorithmic Trading Backtester.
+This script demonstrates the complete workflow:
+1. Data loading from CSV files
+2. Strategy configuration and execution
+3. Order processing and portfolio management
+4. Results analysis and reporting
+"""
 
+import csv
+import logging
+from datetime import datetime
+from typing import List, Dict, Any
+
+from models import MarketDataPoint, Order, OrderError, ExecutionError
+from engine import ExecutionEngine
+from reporting import PerformanceAnalyzer
+from strategies import SMACrossoverStrategy, PriceChangeMomentumStrategy
+
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-market_data_points = []
+logger = logging.getLogger(__name__)
 
-positions = {
-    "AAPL": {"quantity": 0, "avg_price": 0.0},
-    "MSFT": {"quantity": 0, "avg_price": 0.0}
-}
+class TradingSystemOrchestrator:
+    """
+    Main orchestrator class that manages the complete trading system workflow.
+    Handles data loading, strategy execution, and performance reporting.
+    """
+    
+    def __init__(self, failure_rate: float = 0.0, initial_capital: float = 100000.0):
+        """Initialize the trading system orchestrator."""
+        self.engine = ExecutionEngine(failure_rate=failure_rate)
+        self.strategies = []
+        self.initial_capital = initial_capital
+        self.performance_analyzer = None
+        self.logger = logging.getLogger(self.__class__.__name__)
+        
+    def load_market_data(self, csv_file_path: str) -> bool:
+        """
+        Load market data from CSV file.
+        
+        Args:
+            csv_file_path: Path to the CSV file containing market data
+            
+        Returns:
+            bool: True if data loaded successfully, False otherwise
+        """
+        try:
+            self.logger.info(f"Loading market data from {csv_file_path}")
+            self.engine.load_data(csv_file_path)
+            self.logger.info(f"Successfully loaded {len(self.engine._market_data)} market data points")
+            return True
+        except FileNotFoundError:
+            self.logger.error(f"Market data file not found: {csv_file_path}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to load market data: {e}")
+            return False
+    
+    def configure_strategies(self, strategy_configs: List[Dict[str, Any]]) -> bool:
+        """
+        Configure trading strategies based on provided configurations.
+        
+        Args:
+            strategy_configs: List of strategy configuration dictionaries
+            
+        Returns:
+            bool: True if strategies configured successfully, False otherwise
+        """
+        try:
+            self.strategies = []
+            
+            for config in strategy_configs:
+                strategy_type = config.get('type')
+                symbol = config.get('symbol', 'AAPL')
+                
+                if strategy_type == 'SMA_CROSSOVER':
+                    strategy = SMACrossoverStrategy(
+                        symbol=symbol,
+                        short_window=config.get('short_window', 5),
+                        long_window=config.get('long_window', 20),
+                        qty=config.get('quantity', 10)
+                    )
+                elif strategy_type == 'MOMENTUM':
+                    strategy = PriceChangeMomentumStrategy(
+                        symbol=symbol,
+                        threshold=config.get('threshold', 2.0),
+                        qty=config.get('quantity', 5)
+                    )
+                else:
+                    self.logger.error(f"Unknown strategy type: {strategy_type}")
+                    continue
+                
+                self.strategies.append(strategy)
+                self.logger.info(f"Configured {strategy_type} strategy for {symbol}")
+            
+            self.logger.info(f"Successfully configured {len(self.strategies)} strategies")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to configure strategies: {e}")
+            return False
+    
+    def execute_backtest(self) -> bool:
+        """
+        Execute the complete backtesting process.
+        
+        Returns:
+            bool: True if backtest completed successfully, False otherwise
+        """
+        try:
+            if not self.strategies:
+                self.logger.error("No strategies configured. Cannot run backtest.")
+                return False
+            
+            if not self.engine._market_data:
+                self.logger.error("No market data loaded. Cannot run backtest.")
+                return False
+            
+            self.logger.info("Starting backtest execution...")
+            self.engine.run(self.strategies)
+            
+            # Initialize performance analyzer after backtest completion
+            self.performance_analyzer = PerformanceAnalyzer(self.engine, self.initial_capital)
+            
+            self.logger.info("Backtest execution completed successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Backtest execution failed: {e}")
+            return False
+    
+    def generate_performance_report(self, filename: str = "performance.md") -> bool:
+        """
+        Generate comprehensive performance report.
+        
+        Args:
+            filename: Output filename for the report
+            
+        Returns:
+            bool: True if report generated successfully, False otherwise
+        """
+        try:
+            if not self.performance_analyzer:
+                self.logger.error("No performance analyzer available. Run backtest first.")
+                return False
+            
+            self.logger.info("Generating comprehensive performance report...")
+            
+            # Generate the markdown report
+            report_path = self.performance_analyzer.generate_markdown_report(filename)
+            
+            # Print summary to console
+            self.performance_analyzer.print_summary()
+            
+            self.logger.info(f"Performance report generated: {report_path}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to generate performance report: {e}")
+            return False
 
 
-with open('market_data.csv', 'r', newline='') as file:
-    reader = csv.reader(file)
-    next(reader)  # Skip header row if present
-    for row in reader:
-        point = MarketDataPoint(
-            timestamp=datetime.fromisoformat(row[0]),
-            symbol=row[1],
-            price=float(row[2])
-        )
-        market_data_points.append(point)
-
-# Demo the error handling system
 def demo_error_handling():
     """Demonstrate the custom exception handling system"""
     print("=== Error Handling Demo ===")
@@ -74,5 +210,68 @@ def demo_error_handling():
         for error in results['errors']:
             print(f"  - {error}")
 
+
+def run_complete_trading_system():
+    """Run a complete demonstration of the trading system."""
+    print("🚀 Starting Complete Trading System Demonstration")
+    
+    # Initialize the orchestrator with initial capital
+    orchestrator = TradingSystemOrchestrator(failure_rate=0.1, initial_capital=100000.0)
+    
+    # Step 1: Load market data
+    print("\n📂 Step 1: Loading Market Data")
+    if not orchestrator.load_market_data("market_data.csv"):
+        print("❌ Failed to load market data. Exiting.")
+        return
+    
+    # Step 2: Configure strategies
+    print("\n⚙️  Step 2: Configuring Trading Strategies")
+    strategy_configs = [
+        {
+            "type": "SMA_CROSSOVER",
+            "symbol": "AAPL",
+            "short_window": 5,
+            "long_window": 15,
+            "quantity": 10
+        },
+        {
+            "type": "MOMENTUM", 
+            "symbol": "AAPL",
+            "threshold": 1.5,
+            "quantity": 5
+        }
+    ]
+    
+    if not orchestrator.configure_strategies(strategy_configs):
+        print("❌ Failed to configure strategies. Exiting.")
+        return
+    
+    # Step 3: Execute backtest
+    print("\n🎯 Step 3: Executing Backtest")
+    if not orchestrator.execute_backtest():
+        print("❌ Backtest execution failed. Exiting.")
+        return
+    
+    # Step 4: Generate comprehensive performance report
+    print("\n📊 Step 4: Generating Performance Report")
+    if not orchestrator.generate_performance_report("performance.md"):
+        print("❌ Failed to generate performance report.")
+        return
+    
+    print("\n✅ Trading system demonstration completed successfully!")
+    print("📄 Check 'performance.md' for detailed analysis and recommendations.")
+
+
 if __name__ == "__main__":
-    demo_error_handling()
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--error-demo":
+        # Run just the error handling demo
+        demo_error_handling()
+    else:
+        # Run the complete trading system demonstration
+        run_complete_trading_system()
+        
+        # Also run the error handling demo
+        print("\n" + "="*60)
+        demo_error_handling()
