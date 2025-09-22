@@ -14,7 +14,7 @@ import random
 from models import MarketDataPoint, Order, OrderError, ExecutionError
 from engine import ExecutionEngine
 from reporting import PerformanceAnalyzer
-from strategies import SMACrossoverStrategy, PriceChangeMomentumStrategy, RandomBuyAndSellStrategy
+from strategies import SMACrossoverStrategy, RandomBuyAndSellStrategy
 
 # Configure logging
 logging.basicConfig(
@@ -36,18 +36,13 @@ def run_strategy_list():
     engine = ExecutionEngine(failure_rate=0.0, initial_capital=100000.0)
     engine.load_data("market_data.csv")
 
-    engine.run(strat_list)
-    #orchestrator = TradingSystemOrchestrator(failure_rate=0.1)
+    engine.run([test_strat_1, amaz_strat_2])
+    
+    # Generate performance reports and plots
+    from reporting import print_backtest_results, generate_strategy_performance_plots
+    print_backtest_results(engine, [test_strat_1, amaz_strat_2])
+    generate_strategy_performance_plots(engine, [test_strat_1, amaz_strat_2])
 
-    # print("Loading Market Data")
-    # if not orchestrator.load_market_data("market_data.csv"):
-    #     print("Failed to load market data")
-    #     return
-
-    # print("Executing Backtest")
-    # if not orchestrator.execute_backtest():
-    #     print("Failed backtest.")
-    #     return
 
 
 
@@ -56,10 +51,9 @@ if __name__ == "__main__":
     
     if len(sys.argv) > 1 and sys.argv[1] == "--error-demo":
         # Run just the error handling demo
-        demo_error_handling()
+        print("Error demo not implemented")
     else:
         # Run the complete trading system demonstration
-        # run_complete_trading_system()
         run_strategy_list()
         
        
