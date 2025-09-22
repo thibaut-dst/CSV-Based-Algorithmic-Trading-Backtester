@@ -36,9 +36,11 @@ class ExecutionEngine:
         self._strategy_signals: Dict[str, List[Signal]] = {}  # {strategy_name: [signals]}
         self._strategy_orders: Dict[str, List[Order]] = {}    # {strategy_name: [orders]}
         self._strategy_capital: Dict[str, float] = {}         # {strategy_name: allocated_capital}
+        self._strategy_positions: Dict[str, Dict[str, Dict]] = {}  # {strategy_name: {symbol: {quantity: int, avg_price: float}}}
         
         # Historical tracking for performance analysis
         self._capital_history: List[Dict] = []                # Track capital over time
+        self._current_prices: Dict[str, float] = {}           # Track current market prices by symbol
 
     def load_data(self, csv_path: str):
         """Read market data from a CSV file and store as MarketDataPoint list."""
@@ -60,12 +62,14 @@ class ExecutionEngine:
             raise ValueError("Cannot initialize with empty strategy list")
         
         capital_per_strategy = self._initial_capital / len(strategies)
+
         
         for strategy in strategies:
             strategy_name = f"{strategy.__class__.__name__}_{strategy._symbol}"
             self._strategy_signals[strategy_name] = []
             self._strategy_orders[strategy_name] = []
             self._strategy_capital[strategy_name] = capital_per_strategy
+            self._strategy_positions[strategy_name] = {}  # Initialize empty positions for this strategy
             logger.info(f"Allocated ${capital_per_strategy:.2f} to {strategy_name}")
         
         # Record initial capital allocation
@@ -85,6 +89,9 @@ class ExecutionEngine:
         
         self._market_data.sort(key=lambda tick: tick.timestamp)
         for tick in self._market_data: 
+            # Update current market prices
+            self._current_prices[tick.symbol] = tick.price
+            
             for strategy in strategies:
                 # if the strategy trades this symbol it will generate signals otherwise it will return []
                 try:
@@ -140,10 +147,14 @@ class ExecutionEngine:
             self._strategy_capital[strategy_name] -= order_value
             self._current_capital -= order_value
         
-        # Update position directly
+        # Update global position
         pos = self._positions.setdefault(order.symbol, {"quantity": 0, "avg_price": 0.0})
         
+        # Update per-strategy position
+        strategy_pos = self._strategy_positions[strategy_name].setdefault(order.symbol, {"quantity": 0, "avg_price": 0.0})
+        
         if signal_side == "BUY":
+            # Update global position
             if pos["quantity"] == 0:
                 pos["quantity"] = order.quantity
                 pos["avg_price"] = order.price
@@ -151,49 +162,83 @@ class ExecutionEngine:
                 total_cost = pos["quantity"] * pos["avg_price"] + order.quantity * order.price
                 pos["quantity"] += order.quantity
                 pos["avg_price"] = total_cost / pos["quantity"]
+            
+            # Update strategy-specific position
+            if strategy_pos["quantity"] == 0:
+                strategy_pos["quantity"] = order.quantity
+                strategy_pos["avg_price"] = order.price
+            else:
+                total_cost = strategy_pos["quantity"] * strategy_pos["avg_price"] + order.quantity * order.price
+                strategy_pos["quantity"] += order.quantity
+                strategy_pos["avg_price"] = total_cost / strategy_pos["quantity"]
+                
         elif signal_side == "SELL":
             # Add capital back for SELL orders
             self._strategy_capital[strategy_name] += order_value
             self._current_capital += order_value
             
+            # Update global position
             pos["quantity"] -= order.quantity
             if pos["quantity"] == 0:
                 pos["avg_price"] = 0.0
             elif pos["quantity"] < 0:
                 pos["avg_price"] = order.price
+            
+            # Update strategy-specific position
+            strategy_pos["quantity"] -= order.quantity
+            if strategy_pos["quantity"] == 0:
+                strategy_pos["avg_price"] = 0.0
+            elif strategy_pos["quantity"] < 0:
+                strategy_pos["avg_price"] = order.price
         
         order.status = "FILLED"
         logger.info(f"Executed {signal_side}: {order.symbol} {order.quantity}@{order.price:.2f} | Strategy: {strategy_name} | Capital: ${self._strategy_capital[strategy_name]:.2f}")
         
         # Record capital snapshot after each execution
         self._record_capital_snapshot(order.symbol)
+    
+    def get_strategy_total_holdings(self, strategy_name: str) -> dict:
+        """Calculate total holdings (cash + current market value) for a specific strategy."""
+        cash = self._strategy_capital.get(strategy_name, 0.0)
+        position_value = 0.0
+        
+        # Calculate current market value of all positions for this strategy
+        for symbol, position in self._strategy_positions.get(strategy_name, {}).items():
+            if position["quantity"] > 0:
+                current_price = self._current_prices.get(symbol, position["avg_price"])
+                position_value += position["quantity"] * current_price
+        
+        return {
+            "cash": cash,
+            "position_value": position_value,
+            "total_holdings": cash + position_value
+        }
+    
+    def get_all_strategy_holdings(self) -> dict:
+        """Calculate total holdings for all strategies."""
+        holdings = {}
+        for strategy_name in self._strategy_capital.keys():
+            holdings[strategy_name] = self.get_strategy_total_holdings(strategy_name)
+        return holdings
 
     def _record_capital_snapshot(self, symbol: str):
         """Record current capital state for performance tracking."""
-        # Calculate total holdings value for each strategy
-        strategy_holdings = {}
-        for strategy_name in self._strategy_capital.keys():
-            cash = self._strategy_capital[strategy_name]
-            
-            # Calculate position value for this strategy's symbol
-            # Extract symbol from strategy name (assumes format: StrategyName_SYMBOL)
-            strategy_symbol = strategy_name.split('_')[-1]
-            holdings_value = 0.0
-            
-            if strategy_symbol in self._positions:
-                pos = self._positions[strategy_symbol]
-                holdings_value = pos["quantity"] * pos["avg_price"] if pos["quantity"] > 0 else 0.0
-            
-            strategy_holdings[strategy_name] = {
-                "cash": cash,
-                "holdings": holdings_value,
-                "total": cash + holdings_value
+        # Use the new holdings calculation method for accurate tracking
+        strategy_holdings = self.get_all_strategy_holdings()
+        
+        # Convert to the expected format for backward compatibility
+        formatted_holdings = {}
+        for strategy_name, holdings in strategy_holdings.items():
+            formatted_holdings[strategy_name] = {
+                "cash": holdings["cash"],
+                "holdings": holdings["position_value"],
+                "total": holdings["total_holdings"]
             }
         
         snapshot = {
             "symbol": symbol,
             "total_capital": self._current_capital,
-            "strategies": strategy_holdings
+            "strategies": formatted_holdings
         }
         self._capital_history.append(snapshot)
 
